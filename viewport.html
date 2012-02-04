@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+<meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
+<title>Viewport</title>
+<script type="text/javascript">
+// Due to a problem with PhantomJS need to lie and say we can't actually do canvas elements so that street view will render with images and not a canvas element
+document.oldCreateElement = document.createElement; document.createElement = function(element) { if (element == 'canvas') {return 'div';} else { return document.oldCreateElement(element); }}
+</script>
+<script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?sensor=false"></script>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+var panorama;
+var map;
+
+function initialize(latLongHeading) {
+  var originalLatLongHeading = latLongHeading;
+  if (typeof latLongHeading == 'undefined') {
+    return 'Please initialize with a LatLongHeading';
+  } else {
+    latLongHeading = latLongHeading.split(',');
+  }
+
+  var startPosition = new google.maps.LatLng(latLongHeading[0], latLongHeading[1]);
+
+  /* The Map */
+  var mapOptions = {
+    zoom: 16,
+    center: startPosition,
+    scaleControl: true,
+    navigationControl: false,
+    streetViewControl: true,
+    mapTypeId: google.maps.MapTypeId.ROADMAP,
+  }
+  map = new google.maps.Map(document.getElementById("map"), mapOptions);
+
+  /* The Panorama */
+  var panoramaOptions = {
+    addressControl: false,
+    linksControl: false,
+    navigationControl: false,
+    scrollwheel: false,
+    position: startPosition,
+    pov: {
+      heading: parseInt(latLongHeading[2]),
+      pitch: 10,
+      zoom: 1
+    }
+  };
+  panorama = new google.maps.StreetViewPanorama(document.getElementById("pano"), panoramaOptions);
+
+  map.setStreetView(panorama);
+  //don't auto start moveToNextLink(true);
+
+  return 'starting at '+originalLatLongHeading;
+}
+
+function manualCoordinates() {
+  var llh = prompt("Enter Lat,Long,Heading");
+  initialize(llh);
+}
+
+/* this is for debugging */
+function setPositionFields(latLng, heading) {
+  $('#copyLatLongHeading').val(latLng.lat()+','+latLng.lng()+','+heading);
+}
+
+function getCurrentPosition() {
+  var currentPosition = panorama.getPosition();
+  return currentPosition.lat()+','+currentPosition.lng()+','+panorama.getPov().heading;
+}
+function setCurrentPosition(latLngHeading) {
+  returun initialize(latLngHeading);
+}
+
+function getClosestHeading(links) {
+  closestHeading = 1000;
+  closestHeadingLinkId = null;
+  //console.log('---------------');
+  for (i in links) {
+    //currentHeading = (360-currentHeading) % 360;
+    thisRelativeHeading = Math.abs(currentHeading - links[i].heading);
+    //console.log(links[i], currentHeading, ' - ', links[i].heading, ' = ', thisRelativeHeading);
+    if (thisRelativeHeading >= 180) {
+      thisRelativeHeading = 360 - thisRelativeHeading;
+    }
+    //console.log(thisRelativeHeading, closestHeading);
+    if (thisRelativeHeading < closestHeading) {
+      closestHeading = thisRelativeHeading;
+      closestHeadingLinkId = i;
+    }
+
+  }
+  //console.log('---------------', closestHeading);
+  return closestHeadingLinkId;
+}
+
+function moveToNextLink(justSetHeading) {
+  if (typeof justSetHeading == 'undefined') {
+    justSetHeading = false;
+  }
+
+  /* set the current heading in the textboxes */
+  currentLatLong = panorama.getPosition();
+  currentHeading = panorama.getPov().heading;
+  setPositionFields(currentLatcurrentLatLong, currentHeading);
+
+  /* set the POV of the next link then move */
+  links = panorama.getLinks();
+  if (typeof links !== 'undefined') {
+    closestHeadingLinkId = getClosestHeading(links);
+    panorama.setPov({
+      heading: links[closestHeadingLinkId].heading,
+      pitch: panorama.getPov().pitch,
+      zoom: panorama.getPov().zoom
+    });
+  } else {
+    /* for some reason panorama isn't ready so we just try again*/
+    window.setTimeout(function() { moveToNextLink(justSetHeading); }, 1000);
+  }
+
+  if (!justSetHeading) {
+    panorama.setPano(links[closestHeadingLinkId].pano);
+  }
+}
+</script>
+
+<style type="text/css">
+html, body { padding: 0; margin: 0; }
+#map { width: 400px; height: 400px; }
+#pano { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+</style>
+</head>
+<body>
+<div id="debug" style="display: none;">
+  <div id="map"></div>
+  Position: <input type="text" id="copyLatLongHeading" /><br />
+  <button style="clear: both" accesskey="M" onclick="moveToNextLink();">Move</button>
+  <button style="clear: both" accesskey="C" onclick="manualCoordinates();">Manual Coordinates</button>
+</div>
+<div id="pano"></div>
+</body>
+</html>
