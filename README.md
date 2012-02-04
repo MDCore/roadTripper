@@ -6,9 +6,11 @@ A script which navigates across Street View links and takes dated screenshots. F
 PhantomJS (http://code.google.com/p/phantomjs/)
 
 ## USAGE
-* create lastposition.txt and add a Latitude,Longitude,Heading e.g.: -34.143238,18.929973,312.9375
-* from the command line run: phantomjs roadTripper.js
-* images will be saved to the images folder
+* create lastposition.txt and add a Latitude,Longitude,Heading e.g.: `-34.143238,18.929973,312.9375`
+* from the command line run: `phantomjs roadTripper.js`
+
+* images will be saved to the configured images folder, default _images_  in the current folder
+* the time and position of each image will be logged in the configured capturelog file, default _capturelog.txt_
 
 # CAVEATS
 It's clunky and error-prone. You will find you have to go back and re-capture images which means manually editing lastposition.
