@@ -12,7 +12,7 @@ document.oldCreateElement = document.createElement; document.createElement = fun
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js" type="text/javascript"></script>
 
 <script type="text/javascript">
-var panorama;
+var panorama = null;
 var map;
 
 function initialize(latLongHeading) {
@@ -54,7 +54,7 @@ function initialize(latLongHeading) {
   map.setStreetView(panorama);
   //don't auto start moveToNextLink(true);
 
-  return 'starting at '+originalLatLongHeading;
+  return 'Roger, starting at '+originalLatLongHeading;
 }
 
 function manualCoordinates() {
@@ -72,7 +72,7 @@ function getCurrentPosition() {
   return currentPosition.lat()+','+currentPosition.lng()+','+panorama.getPov().heading;
 }
 function setCurrentPosition(latLngHeading) {
-  returun initialize(latLngHeading);
+  return initialize(latLngHeading);
 }
 
 function getClosestHeading(links) {
@@ -105,7 +105,7 @@ function moveToNextLink(justSetHeading) {
   /* set the current heading in the textboxes */
   currentLatLong = panorama.getPosition();
   currentHeading = panorama.getPov().heading;
-  setPositionFields(currentLatcurrentLatLong, currentHeading);
+  setPositionFields(currentLatLong, currentHeading);
 
   /* set the POV of the next link then move */
   links = panorama.getLinks();

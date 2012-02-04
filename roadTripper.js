@@ -13,10 +13,12 @@ if (!fs.exists(lastPositionLog)) {
   phantom.exit();
 }
 /* load the current position from the last position log */
-var startLatLongHeading = fs.read(lastPositionLog);
+var lastPositionLog_file = fs.open(lastPositionLog, 'r');
+var startLatLongHeading = lastPositionLog_file.readLine(lastPositionLog); /* we only want the first line. This takes care of the case of the spurious newline */
 if (startLatLongHeading == '' | startLatLongHeading == null) {
   console.log('No last position saved. Please initialize the starting LatLong');
   phantom.exit();
+  startLatLongHeading.trim();
 }
 
 /* load the debug file */
@@ -62,11 +64,18 @@ page.onLoadStarted = function () {
 
 page.onLoadFinished = function (status) {
   console.log('Viewport finished loading');
-
+//debug
+  //initialize('-34.143238,18.929973,312.9375'); }));phantom.exit();
   console.log('Setting starting coordinates to '+startLatLongHeading);
-  var initFunction = "function() { initialize('"+startLatLongHeading+"'); moveToNextLink(true); }";
-  page.evaluate(initFunction);
-
+  var initFunction = "function() { var initResult = initialize('"+startLatLongHeading+"'); moveToNextLink(true); return initResult; }";
+  var result = page.evaluate(initFunction);
+  console.log('Viewport responded to initialize() with: '+result);
+  if (result == null) {
+    console.log("Null isn't a good response. Something went wrong. Sorry.");
+    console.log("This was our init function, test it in the console of a webkit browser");
+    console.log(initFunction);
+    phantom.exit();
+  }
   startWaitLoop();
 };
 
@@ -79,7 +88,12 @@ function startWaitLoop() {
 
       window.setTimeout(function() {
         // log the current time and coordinates
-        var currentPosition = page.evaluate(function() { return getCurrentPos(); });
+        var currentPosition = page.evaluate(function() { return getCurrentPosition(); });
+	if (currentPosition == null) {
+	  console.log("Hmm. The viewport returned null for the currentPosition. That's not good. We can't go on from here unfortunately.");
+	  phantom.exit();
+	}
+
         var timestamp = friendlyTimestamp();
 
         // save the newly loaded image
