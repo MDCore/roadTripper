@@ -1,6 +1,5 @@
 # roadTripper
-
-A script which navigates across Street View links and takes dated screenshots. For making time-lapses!
+A script which navigates across Street View links and takes date stamped screenshots for making time-lapses!
 
 ## Requirements
 PhantomJS (http://code.google.com/p/phantomjs/)
