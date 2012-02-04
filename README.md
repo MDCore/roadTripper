@@ -1,4 +1,4 @@
-# Street View Time-lapse
+# roadTripper
 
 A script which navigates across Street View links and takes dated screenshots. For making time-lapses!
 
@@ -19,5 +19,5 @@ It will also get lost. This is originally designed to go along a national highwa
 * A tool for easily re-capturing bad images.
 
 ## LICENSE
-Street View Time-lapse's source code is licensed under the
+roadTripper's source code is licensed under the
 [GNU General Public License](http://www.gnu.org/licenses/gpl.html).
