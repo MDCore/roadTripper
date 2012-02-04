@@ -12,11 +12,13 @@ PhantomJS (http://code.google.com/p/phantomjs/)
 * the time and position of each image will be logged in the configured capturelog file, default `capturelog.txt`
 
 # CAVEATS
-It's clunky and error-prone. You will find you have to go back and re-capture images which means manually editing lastposition.
-It will also get lost. This is originally designed to go along a national highway, without detours.
+It's clunky and error-prone. You will find you have to go back and re-capture images which means manually editing `lastposition.txt`.
+It will also get lost. This script was originally designed to go along a national highway, without detours, and it wasn't very good at that.
+There is more to come though!
 
 # PLANNED FEATURES
 * Use Google Directions API to follow a route (no more geting lost).
+** This includes a tool for easily selecting a route
 * A tool for easily re-capturing bad images.
 
 ## LICENSE
