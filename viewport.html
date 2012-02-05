@@ -62,10 +62,10 @@ function initialize(latLongHeading) {
   if (debug) {
     /* update the position on any movement change  */
     google.maps.event.addListener(panorama, 'pov_changed', function() { setPositionFields(); });
-    google.maps.event.addListener(panorama, 'position_changed', function() { setPositionFields(); });
+    google.maps.event.addListener(panorama, 'position_changed', function() { setPositionFields(true); });
 
   }
-  setPositionFields();
+  setPositionFields(true);
   return 'Roger, starting at '+originalLatLongHeading;
 }
 
@@ -74,10 +74,11 @@ function manualCoordinates() {
   initialize(llh);
 }
 
-function setPositionFields() {
+function setPositionFields(updateRecentPositions) {
+  if (typeof updateRecentPositions == 'undefined') { updateRecentPositions = false; }
   currentPosition = getCurrentPosition();
   if ($('#copyLatLongHeading').val() !== currentPosition) {
-    $('#recentPositions').append('<span>'+currentPosition+'</span><br />');
+    if (updateRecentPositions) { $('#recentPositions').append('<span>'+currentPosition+'</span><br />'); }
     $('#copyLatLongHeading').val(currentPosition);
   }
 }
@@ -142,7 +143,7 @@ $(function() {
     $('#debug').show();
     $('#pano,#map').addClass('debug');
 
-    $('#copyLatLongHeading,#recentPositions').click(function() {
+    $('#copyLatLongHeading').click(function() {
       $(this).select();
     });
   }
@@ -162,6 +163,13 @@ html, body { padding: 0; margin: 0; }
 }
 #copyLatLongHeading {
   width: 300px;
+}
+#recentPositions {
+  font-family: "Courier New",sans;
+  font-size: 14px;
+  width: 350px;
+  border: 1px solid #000;
+}
 </style>
 </head>
 <body>
