@@ -98,7 +98,7 @@ function startWaitLoop() {
 
         // save the newly loaded image
         console.log('Saving image at '+currentPosition);
-        page.render(imagesDirectory+fs.separator +timestamp+'.png');
+        page.render(imagesDirectory+fs.separator +timestamp+' '+currentPosition+'.jpg');
 
 	/* log the time and position of this capture */
         captureLog_file.writeLine(timestamp+' '+currentPosition);
@@ -134,7 +134,7 @@ function friendlyTimestamp() {
 
   var year = d.getFullYear();
   var month = pad(d.getMonth() + 1); //months are zero based
-  var day = pad(d.getDay());
+  var day = pad(d.getDate());
   var hour = pad(d.getHours());
   var minute = pad(d.getMinutes());
   var second = pad(d.getSeconds());
