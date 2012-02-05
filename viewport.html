@@ -125,12 +125,27 @@ function moveToNextLink(justSetHeading) {
     panorama.setPano(links[closestHeadingLinkId].pano);
   }
 }
+
+$(function() {
+  if (window.location.hash == '#debug') {
+    console.log('showing debug info');
+    $('#debug').show();
+    $('#pano,#map').addClass('debug');
+  }
+});
 </script>
 
 <style type="text/css">
 html, body { padding: 0; margin: 0; }
 #map { width: 400px; height: 400px; }
+#map.debug { border: 1px solid #000; }
 #pano { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+#pano.debug {
+  height: 900px;
+  width: 1450px;
+  left: 405px;
+  border: 1px solid #000;
+}
 </style>
 </head>
 <body>
