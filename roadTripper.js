@@ -84,15 +84,15 @@ function startWaitLoop() {
   waitingForPanoLoadIntervalId = window.setInterval(function() {
     if (atLeastOneRequestReceived && outstandingRequests == 0) {
       window.clearInterval(waitingForPanoLoadIntervalId);
-      console.log('finished loading tiles. Waiting 2 seconds.'); /* Even though the tiles are downloaded, they may not be rendered yet */
+      console.log('finished loading tiles. Waiting a moment.'); /* Even though the tiles are downloaded, they are sometimes not rendered yet. This time can probably do with tweaking */
 
       window.setTimeout(function() {
         // log the current time and coordinates
         var currentPosition = page.evaluate(function() { return getCurrentPosition(); });
-	if (currentPosition == null) {
-	  console.log("Hmm. The viewport returned null for the currentPosition. That's not good. We can't go on from here unfortunately.");
-	  phantom.exit();
-	}
+        if (currentPosition == null) {
+          console.log("Hmm. The viewport returned null for currentPosition(). That's not good. We can't go on from here unfortunately.");
+          phantom.exit();
+        }
 
         var timestamp = friendlyTimestamp();
 
@@ -116,7 +116,7 @@ function startWaitLoop() {
 
         // let's do it again
         startWaitLoop();
-      }, 2000);
+      }, 1000);
 
     }
   }, 100);
