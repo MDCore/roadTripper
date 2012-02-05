@@ -67,7 +67,7 @@ page.onLoadFinished = function (status) {
 //debug
   //initialize('-34.143238,18.929973,312.9375'); }));phantom.exit();
   console.log('Setting starting coordinates to '+startLatLongHeading);
-  var initFunction = "function() { var initResult = initialize('"+startLatLongHeading+"'); moveToNextLink(true); return initResult; }";
+  var initFunction = "function() { var initResult = initialize('"+startLatLongHeading+"'); return initResult; }";
   var result = page.evaluate(initFunction);
   console.log('Viewport responded to initialize() with: '+result);
   if (result == null) {
