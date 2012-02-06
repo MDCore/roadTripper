@@ -6,9 +6,13 @@ var logToDebug = false;
 /* --- Config ----------------------- */
 
 var fs = require('fs');
+/* load the Debug and Capture Log files */
+if (logToDebug) { var debug_file = fs.open('debug.txt', 'a'); }
+var captureLog_file = fs.open(captureLog, 'a');
+
 /* check that the log file exists */
 if (!fs.exists(lastPositionLog)) {
-  console.log(friendlyTimestamp()+' No last position saved. Please initialize the starting LatLongHeading in '+lastPositionLog);
+  consoleAndFileLog('No last position saved. Please initialize the starting LatLongHeading in '+lastPositionLog);
   fs.touch(lastPositionLog);
   phantom.exit();
 }
@@ -59,21 +63,21 @@ page.onResourceReceived = function (response) {
 };
 
 page.onLoadStarted = function () {
-    console.log(friendlyTimestamp()+' Viewport is loading');
+  consoleAndFileLog('Viewport is loading');
 };
 
 page.onLoadFinished = function (status) {
-  console.log(friendlyTimestamp()+' Viewport finished loading');
+  consoleAndFileLog('Viewport finished loading');
 //debug
   //initialize('-34.143238,18.929973,312.9375'); }));phantom.exit();
-  console.log(friendlyTimestamp()+' Setting starting coordinates to '+startLatLongHeading);
+  consoleAndFileLog('Setting starting coordinates to '+page.startLatLongHeading);
   var initFunction = "function() { var initResult = initialize('"+startLatLongHeading+"'); return initResult; }";
   var result = page.evaluate(initFunction);
-  console.log(friendlyTimestamp()+' Viewport responded to initialize() with: '+result);
+  consoleAndFileLog('Viewport responded to initialize() with: '+result);
   if (result == null) {
-    console.log(friendlyTimestamp()+" Null isn't a good response. Something went wrong. Sorry.");
-    console.log(friendlyTimestamp()+" This was our init function, test it in the console of a webkit browser");
-    console.log(initFunction);
+    consoleAndFileLog("Null isn't a good response. Something went wrong. Sorry.");
+    consoleAndFileLog("This was our init function, test it in the console of a webkit browser");
+    consoleAndFileLog(initFunction);
     phantom.exit();
   }
   startWaitLoop();
@@ -84,20 +88,20 @@ function startWaitLoop() {
   waitingForPanoLoadIntervalId = window.setInterval(function() {
     if (atLeastOneRequestReceived && outstandingRequests == 0) {
       window.clearInterval(waitingForPanoLoadIntervalId);
-      console.log(friendlyTimestamp()+' finished loading tiles. Waiting a moment.'); /* Even though the tiles are downloaded, they are sometimes not rendered yet. This time can probably do with tweaking */
+      consoleAndFileLog('finished loading tiles. Waiting a moment.'); /* Even though the tiles are downloaded, they are sometimes not rendered yet. This time can probably do with tweaking */
 
       window.setTimeout(function() {
         // log the current time and coordinates
         var currentPosition = page.evaluate(function() { return getCurrentPosition(); });
         if (currentPosition == null) {
-          console.log(friendlyTimestamp()+" Hmm. The viewport returned null for currentPosition(). That's not good. We can't go on from here unfortunately.");
+          consoleAndFileLog("Hmm. The viewport returned null for currentPosition(). That's not good. We can't go on from here unfortunately.");
           phantom.exit();
         }
 
         var timestamp = friendlyTimestamp();
 
         // save the newly loaded image
-        console.log(friendlyTimestamp()+' Saving image at '+currentPosition);
+        consoleAndFileLog('Saving image at '+currentPosition);
         page.render(imagesDirectory+fs.separator +timestamp+' '+currentPosition+'.jpg');
 
 	/* log the time and position of this capture */
@@ -109,7 +113,7 @@ function startWaitLoop() {
         /* reset state on our side */
         atLeastOneRequestReceived = false;
 
-        console.log(friendlyTimestamp()+' moving on');
+        consoleAndFileLog('moving on');
         page.evaluate(function() {
           moveToNextLink();
         });
@@ -123,6 +127,12 @@ function startWaitLoop() {
 }
 
 /* --- helper functions ------------------------ */
+function consoleAndFileLog(message) {
+  message = friendlyTimestamp()+' '+message;
+  console.log(message);
+  captureLog_file.writeLine(message);
+  captureLog_file.flush();
+}
 function debug(string) {
   if (logToDebug) {
     debug_file.writeLine(friendlyTimestamp()+' '+string);
