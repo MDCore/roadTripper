@@ -8,7 +8,7 @@ var logToDebug = false;
 var fs = require('fs');
 /* check that the log file exists */
 if (!fs.exists(lastPositionLog)) {
-  console.log('No last position saved. Please initialize the starting LatLongHeading in '+lastPositionLog);
+  console.log(friendlyTimestamp()+' No last position saved. Please initialize the starting LatLongHeading in '+lastPositionLog);
   fs.touch(lastPositionLog);
   phantom.exit();
 }
@@ -16,7 +16,7 @@ if (!fs.exists(lastPositionLog)) {
 var lastPositionLog_file = fs.open(lastPositionLog, 'r');
 var startLatLongHeading = lastPositionLog_file.readLine(lastPositionLog); /* we only want the first line. This takes care of the case of the spurious newline */
 if (startLatLongHeading == '' | startLatLongHeading == null) {
-  console.log('No last position saved. Please initialize the starting LatLong');
+  console.log(friendlyTimestamp()+' No last position saved. Please initialize the starting LatLong');
   phantom.exit();
   startLatLongHeading.trim();
 }
@@ -30,11 +30,11 @@ var captureLog_file = fs.open(captureLog, 'a');
 /* Set up the page and viewport */
 var page = require('webpage').create();
 page.viewportSize = { width: 1920, height: 1080 };
-console.log('Loading viewport source');
+console.log(friendlyTimestamp()+' Loading viewport source');
 var viewport = fs.read('viewport.html');
-console.log('Attaching source');
+console.log(friendlyTimestamp()+' Attaching source');
 page.content = viewport;
-console.log('Source attached');
+console.log(friendlyTimestamp()+' Source attached');
 
 atLeastOneRequestReceived = false;
 var outstandingRequests = 0;
@@ -59,20 +59,20 @@ page.onResourceReceived = function (response) {
 };
 
 page.onLoadStarted = function () {
-    console.log('Viewport is loading');
+    console.log(friendlyTimestamp()+' Viewport is loading');
 };
 
 page.onLoadFinished = function (status) {
-  console.log('Viewport finished loading');
+  console.log(friendlyTimestamp()+' Viewport finished loading');
 //debug
   //initialize('-34.143238,18.929973,312.9375'); }));phantom.exit();
-  console.log('Setting starting coordinates to '+startLatLongHeading);
+  console.log(friendlyTimestamp()+' Setting starting coordinates to '+startLatLongHeading);
   var initFunction = "function() { var initResult = initialize('"+startLatLongHeading+"'); return initResult; }";
   var result = page.evaluate(initFunction);
-  console.log('Viewport responded to initialize() with: '+result);
+  console.log(friendlyTimestamp()+' Viewport responded to initialize() with: '+result);
   if (result == null) {
-    console.log("Null isn't a good response. Something went wrong. Sorry.");
-    console.log("This was our init function, test it in the console of a webkit browser");
+    console.log(friendlyTimestamp()+" Null isn't a good response. Something went wrong. Sorry.");
+    console.log(friendlyTimestamp()+" This was our init function, test it in the console of a webkit browser");
     console.log(initFunction);
     phantom.exit();
   }
@@ -84,20 +84,20 @@ function startWaitLoop() {
   waitingForPanoLoadIntervalId = window.setInterval(function() {
     if (atLeastOneRequestReceived && outstandingRequests == 0) {
       window.clearInterval(waitingForPanoLoadIntervalId);
-      console.log('finished loading tiles. Waiting a moment.'); /* Even though the tiles are downloaded, they are sometimes not rendered yet. This time can probably do with tweaking */
+      console.log(friendlyTimestamp()+' finished loading tiles. Waiting a moment.'); /* Even though the tiles are downloaded, they are sometimes not rendered yet. This time can probably do with tweaking */
 
       window.setTimeout(function() {
         // log the current time and coordinates
         var currentPosition = page.evaluate(function() { return getCurrentPosition(); });
         if (currentPosition == null) {
-          console.log("Hmm. The viewport returned null for currentPosition(). That's not good. We can't go on from here unfortunately.");
+          console.log(friendlyTimestamp()+" Hmm. The viewport returned null for currentPosition(). That's not good. We can't go on from here unfortunately.");
           phantom.exit();
         }
 
         var timestamp = friendlyTimestamp();
 
         // save the newly loaded image
-        console.log('Saving image at '+currentPosition);
+        console.log(friendlyTimestamp()+' Saving image at '+currentPosition);
         page.render(imagesDirectory+fs.separator +timestamp+' '+currentPosition+'.jpg');
 
 	/* log the time and position of this capture */
@@ -109,7 +109,7 @@ function startWaitLoop() {
         /* reset state on our side */
         atLeastOneRequestReceived = false;
 
-        console.log('moving on');
+        console.log(friendlyTimestamp()+' moving on');
         page.evaluate(function() {
           moveToNextLink();
         });
