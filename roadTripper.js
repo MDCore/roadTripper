@@ -3,6 +3,7 @@ var imagesDirectory = 'images';
 var captureLog = 'capturelog.txt';
 var lastPositionLog = 'lastposition.txt';
 var logToDebug = false;
+var secondsToWaitForPageToRenderBeforeRestarting = 30;
 /* --- Config ----------------------- */
 
 var fs = require('fs');
@@ -16,29 +17,8 @@ if (!fs.exists(lastPositionLog)) {
   fs.touch(lastPositionLog);
   phantom.exit();
 }
-/* load the current position from the last position log */
-var lastPositionLog_file = fs.open(lastPositionLog, 'r');
-var startLatLongHeading = lastPositionLog_file.readLine(lastPositionLog); /* we only want the first line. This takes care of the case of the spurious newline */
-if (startLatLongHeading == '' | startLatLongHeading == null) {
-  console.log(friendlyTimestamp()+' No last position saved. Please initialize the starting LatLong');
-  phantom.exit();
-  startLatLongHeading.trim();
-}
 
-/* load the debug file */
-if (logToDebug) { var debug_file = fs.open('debug.txt', 'a'); }
-
-/*load the capture log file */
-var captureLog_file = fs.open(captureLog, 'a');
-
-/* Set up the page and viewport */
-var page = require('webpage').create();
-page.viewportSize = { width: 1920, height: 1080 };
-console.log(friendlyTimestamp()+' Loading viewport source');
-var viewport = fs.read('viewport.html');
-console.log(friendlyTimestamp()+' Attaching source');
-page.content = viewport;
-console.log(friendlyTimestamp()+' Source attached');
+var page = setupPage(null);
 
 atLeastOneRequestReceived = false;
 var outstandingRequests = 0;
@@ -71,7 +51,7 @@ page.onLoadFinished = function (status) {
 //debug
   //initialize('-34.143238,18.929973,312.9375'); }));phantom.exit();
   consoleAndFileLog('Setting starting coordinates to '+page.startLatLongHeading);
-  var initFunction = "function() { var initResult = initialize('"+startLatLongHeading+"'); return initResult; }";
+  var initFunction = "function() { var initResult = initialize('"+page.startLatLongHeading+"'); return initResult; }";
   var result = page.evaluate(initFunction);
   consoleAndFileLog('Viewport responded to initialize() with: '+result);
   if (result == null) {
@@ -84,9 +64,13 @@ page.onLoadFinished = function (status) {
 };
 
 var waitingForPanoLoadIntervalId = -1;
+var restartTheProcessTimeoutId = -1;
 function startWaitLoop() {
+  if (outstandingRequests < 0 && !atLeastOneRequestReceived) { outstandingRequests = 0; }
   waitingForPanoLoadIntervalId = window.setInterval(function() {
+  //console.log(atLeastOneRequestReceived);  console.log(outstandingRequests);
     if (atLeastOneRequestReceived && outstandingRequests == 0) {
+      window.clearTimeout(restartTheProcessTimeoutId);
       window.clearInterval(waitingForPanoLoadIntervalId);
       consoleAndFileLog('finished loading tiles. Waiting a moment.'); /* Even though the tiles are downloaded, they are sometimes not rendered yet. This time can probably do with tweaking */
 
@@ -113,12 +97,47 @@ function startWaitLoop() {
           moveToNextLink();
         });
 
+        restartTheProcessTimeoutId = window.setTimeout(function() {
+        consoleAndFileLog("Ooops. Looks like things got stuck. Let's restart.");
+          window.clearTimeout(waitingForPanoLoadIntervalId);
+          atLeastOneRequestReceived = false;
+          outstandingRequests = 0;
+          page = setupPage(page);
+        }, secondsToWaitForPageToRenderBeforeRestarting*1000);
         // let's do it again
         startWaitLoop();
       }, 1000);
 
     }
   }, 100);
+}
+
+
+function setupPage(current_page) {
+
+  /* Set up the page and viewport */
+  if (current_page == null) {
+    var page = require('webpage').create();
+    page.viewportSize = { width: 1920, height: 1080 };
+  } else {
+    var page = current_page;
+  }
+  consoleAndFileLog('Loading viewport source');
+  var viewport = fs.read('viewport.html');
+  consoleAndFileLog('Attaching source');
+  page.content = viewport;
+  consoleAndFileLog('Source attached');
+
+  /* load the current position from the last position log */
+  var lastPositionLog_file = fs.open(lastPositionLog, 'r');
+  page.startLatLongHeading = lastPositionLog_file.readLine(lastPositionLog); /* we only want the first line. This takes care of the case of the spurious newline */
+  if (page.startLatLongHeading == '' | page.startLatLongHeading == null) {
+    consoleAndFileLog('No last position saved. Please initialize the starting LatLong');
+    phantom.exit();
+    page.startLatLongHeading.trim();
+  }
+
+  return page;
 }
 
 /* --- helper functions ------------------------ */
