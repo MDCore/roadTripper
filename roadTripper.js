@@ -45,7 +45,7 @@ var outstandingRequests = 0;
 
 var tileRequestSnippet = "googleapis.com/cbk?output=tile";
 page.onResourceRequested = function (request) {
-//console.log(request.url.indexOf(tileRequestSnippet) +' ' + request.url);
+    //console.log(request.url.indexOf(tileRequestSnippet) +' ' + request.url);
 	if (request.url.indexOf(tileRequestSnippet) > 0) {
 	  atLeastOneRequestReceived = true;
 	  outstandingRequests++;
@@ -98,16 +98,11 @@ function startWaitLoop() {
           phantom.exit();
         }
 
-        var timestamp = friendlyTimestamp();
-
-        // save the newly loaded image
+        /* save the newly loaded image */
         consoleAndFileLog('Saving image at '+currentPosition);
-        page.render(imagesDirectory+fs.separator +timestamp+' '+currentPosition+'.jpg');
+        page.render(imagesDirectory+fs.separator +friendlyTimestamp()+' '+currentPosition+'.jpg');
 
-	/* log the time and position of this capture */
-        captureLog_file.writeLine(timestamp+' '+currentPosition);
-        captureLog_file.flush();
-	/* log the current position */
+        /* log the current position */
         fs.write(lastPositionLog, currentPosition, 'w');
 
         /* reset state on our side */
