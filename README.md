@@ -18,7 +18,7 @@ There is more to come though!
 
 # PLANNED FEATURES
 * Use Google Directions API to follow a route (no more geting lost).
-  * This includes a tool for easily selecting a route
+  * This includes a tool for easily selecting a route.
 * A tool for easily re-capturing bad images.
 
 ## LICENSE

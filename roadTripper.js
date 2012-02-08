@@ -46,8 +46,8 @@ page.onLoadStarted = function () {
   consoleAndFileLog('Viewport is loading');
 };
 
-page.onLoadFinished = function (status) {
-  consoleAndFileLog('Viewport finished loading');
+ function pageLoaded(status) {
+  consoleAndFileLog('Viewport finished loading - '+status);
 //debug
   //initialize('-34.143238,18.929973,312.9375'); }));phantom.exit();
   consoleAndFileLog('Setting starting coordinates to '+page.startLatLongHeading);
@@ -62,6 +62,7 @@ page.onLoadFinished = function (status) {
   }
   startWaitLoop();
 };
+page.onLoadFinished = pageLoaded;
 
 var waitingForPanoLoadIntervalId = -1;
 var restartTheProcessTimeoutId = -1;
@@ -102,7 +103,8 @@ function startWaitLoop() {
           window.clearTimeout(waitingForPanoLoadIntervalId);
           atLeastOneRequestReceived = false;
           outstandingRequests = 0;
-          page = setupPage(page);
+	  loadLastPosition(page);
+          pageLoaded('success');
         }, secondsToWaitForPageToRenderBeforeRestarting*1000);
         // let's do it again
         startWaitLoop();
@@ -112,6 +114,16 @@ function startWaitLoop() {
   }, 100);
 }
 
+function loadLastPosition(page) {
+  /* load the current position from the last position log */
+  var lastPositionLog_file = fs.open(lastPositionLog, 'r');
+  page.startLatLongHeading = lastPositionLog_file.readLine(lastPositionLog); /* we only want the first line. This takes care of the case of the spurious newline */
+  if (page.startLatLongHeading == '' | page.startLatLongHeading == null) {
+    consoleAndFileLog('No last position saved. Please initialize the starting LatLong');
+    phantom.exit();
+    page.startLatLongHeading.trim();
+  }
+}
 
 function setupPage(current_page) {
 
@@ -128,14 +140,7 @@ function setupPage(current_page) {
   page.content = viewport;
   consoleAndFileLog('Source attached');
 
-  /* load the current position from the last position log */
-  var lastPositionLog_file = fs.open(lastPositionLog, 'r');
-  page.startLatLongHeading = lastPositionLog_file.readLine(lastPositionLog); /* we only want the first line. This takes care of the case of the spurious newline */
-  if (page.startLatLongHeading == '' | page.startLatLongHeading == null) {
-    consoleAndFileLog('No last position saved. Please initialize the starting LatLong');
-    phantom.exit();
-    page.startLatLongHeading.trim();
-  }
+  loadLastPosition(page);
 
   return page;
 }
