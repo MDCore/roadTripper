@@ -3,9 +3,11 @@ var imagesDirectory = 'images';
 var captureLog = 'capturelog.txt';
 var lastPositionLog = 'lastposition.txt';
 var logToDebug = false;
-var secondsToWaitForPageToRenderBeforeRestarting = 30;
+var secondsToWaitForPageToRenderBeforeRestarting = 40;
+var screenshotsToSaveBeforeReloadingPage = 10;
 /* --- Config ----------------------- */
 
+var positionQueue = null;
 var fs = require('fs');
 /* load the Debug and Capture Log files */
 if (logToDebug) { var debug_file = fs.open('debug.txt', 'a'); }
@@ -18,36 +20,16 @@ if (!fs.exists(lastPositionLog)) {
   phantom.exit();
 }
 
-var page = setupPage(null);
-
-atLeastOneRequestReceived = false;
-var outstandingRequests = 0;
+var page = setupPage();
 
 var tileRequestSnippet = "googleapis.com/cbk?output=tile";
-page.onResourceRequested = function (request) {
-    //console.log(request.url.indexOf(tileRequestSnippet) +' ' + request.url);
-	if (request.url.indexOf(tileRequestSnippet) > 0) {
-	  atLeastOneRequestReceived = true;
-	  outstandingRequests++;
-	  //debug('Request: ' + JSON.stringify(request, undefined, 4));
-	  debug('Request: ('+outstandingRequests+'): '+request.status+' '+request.url);
-	}
-};
-page.onResourceReceived = function (response) {
-//console.log(response.url.indexOf(tileRequestSnippet) +' ' + response.url);
-	if (response.url.indexOf(tileRequestSnippet) > 0 && response.stage == 'end') {
-	  outstandingRequests--;
-	  //debug('Response: ' + JSON.stringify(response, undefined, 4));
-      debug('Response: ('+outstandingRequests+'): '+response.status+' '+response.url);
-	}
-};
-
-page.onLoadStarted = function () {
-  consoleAndFileLog('Viewport is loading');
-};
+var atLeastOneRequestReceived = false;
+var outstandingRequests = 0;
+var noOfScreenshotsSaved = 0;
+var lastPositionSaved = null;
 
  function pageLoaded(status) {
-  consoleAndFileLog('Viewport finished loading - '+status);
+  consoleAndFileLog('Viewport finished loading ('+status+')');
 //debug
   //initialize('-34.143238,18.929973,312.9375'); }));phantom.exit();
   consoleAndFileLog('Setting starting coordinates to '+page.startLatLongHeading);
@@ -60,13 +42,13 @@ page.onLoadStarted = function () {
     consoleAndFileLog(initFunction);
     phantom.exit();
   }
-  startWaitLoop();
+   startWaitLoop();
 };
-page.onLoadFinished = pageLoaded;
 
 var waitingForPanoLoadIntervalId = -1;
 var restartTheProcessTimeoutId = -1;
 function startWaitLoop() {
+  startTheRestartTheProcessTimeout();
   if (outstandingRequests < 0 && !atLeastOneRequestReceived) { outstandingRequests = 0; }
   waitingForPanoLoadIntervalId = window.setInterval(function() {
   //console.log(atLeastOneRequestReceived);  console.log(outstandingRequests);
@@ -83,35 +65,46 @@ function startWaitLoop() {
           phantom.exit();
         }
 
-        /* save the newly loaded image */
-        consoleAndFileLog('Saving image at '+currentPosition);
-        page.render(imagesDirectory+fs.separator +friendlyTimestamp()+' '+currentPosition+'.jpg');
+        if (currentPosition != lastPositionSaved) {
+          /* save the newly loaded image */
+          noOfScreenshotsSaved++;
+          lastPositionSaved = currentPosition;
+          consoleAndFileLog('Saving screenshot #'+noOfScreenshotsSaved+' at '+currentPosition);
+          page.render(imagesDirectory+fs.separator +friendlyTimestamp()+' '+currentPosition+'.jpg');
 
-        /* log the current position */
-        fs.write(lastPositionLog, currentPosition, 'w');
+          /* log the current position */
+          logLastPosition(currentPosition);
 
-        /* reset state on our side */
+          if (noOfScreenshotsSaved % screenshotsToSaveBeforeReloadingPage == 0 && noOfScreenshotsSaved > 0) {
+            setupPage();
+            return false;
+          }
+
+          consoleAndFileLog('moving on.');
+        } else {
+          consoleAndFileLog('We were just here. Moving swiftly on.');
+        }
+
         atLeastOneRequestReceived = false;
 
-        consoleAndFileLog('moving on');
         page.evaluate(function() {
           moveToNextLink();
         });
 
-        restartTheProcessTimeoutId = window.setTimeout(function() {
-        consoleAndFileLog("Ooops. Looks like things got stuck. Let's restart.");
-          window.clearTimeout(waitingForPanoLoadIntervalId);
-          atLeastOneRequestReceived = false;
-          outstandingRequests = 0;
-	  loadLastPosition(page);
-          pageLoaded('success');
-        }, secondsToWaitForPageToRenderBeforeRestarting*1000);
         // let's do it again
         startWaitLoop();
       }, 1000);
-
     }
   }, 100);
+}
+
+function startTheRestartTheProcessTimeout() {
+  restartTheProcessTimeoutId = window.setTimeout(function() {
+    consoleAndFileLog("Ooops. Looks like things got stuck. Let's restart. ("+atLeastOneRequestReceived+', '+outstandingRequests+')');
+    window.clearTimeout(waitingForPanoLoadIntervalId);
+    setupPage();
+  }, secondsToWaitForPageToRenderBeforeRestarting*1000);
+
 }
 
 function loadLastPosition(page) {
@@ -124,16 +117,51 @@ function loadLastPosition(page) {
     page.startLatLongHeading.trim();
   }
 }
+function logLastPosition(currentPosition) {
+  if (positionQueue == null) {
+    fs.write(lastPositionLog, currentPosition, 'w');
+  } else {
+  }
+}
 
-function setupPage(current_page) {
+function setupPage() {
+  atLeastOneRequestReceived = false;
+  outstandingRequests = 0;
+
+  /* do some garbage collection if we're reloading */
+  if (typeof page !== 'undefined' && page !== null) {
+    consoleAndFileLog('Releasing the page. Run free little memory!');
+    page.release();
+  }
 
   /* Set up the page and viewport */
-  if (current_page == null) {
-    var page = require('webpage').create();
-    page.viewportSize = { width: 1920, height: 1080 };
-  } else {
-    var page = current_page;
-  }
+  page = require('webpage').create();
+  page.viewportSize = { width: 1920, height: 1080 };
+
+	page.onResourceRequested = function (request) {
+		//console.log(request.url.indexOf(tileRequestSnippet) +' ' + request.url);
+		if (request.url.indexOf(tileRequestSnippet) > 0) {
+		  atLeastOneRequestReceived = true;
+		  outstandingRequests++;
+		  //debug('Request: ' + JSON.stringify(request, undefined, 4));
+		  debug('Request: ('+outstandingRequests+'): '+request.status+' '+request.url);
+		}
+	};
+  page.onResourceReceived = function (response) {
+  //console.log(response.url.indexOf(tileRequestSnippet) +' ' + response.url);
+    if (response.url.indexOf(tileRequestSnippet) > 0 && response.stage == 'end') {
+      outstandingRequests--;
+      //debug('Response: ' + JSON.stringify(response, undefined, 4));
+      debug('Response: ('+outstandingRequests+'): '+response.status+' '+response.url);
+    }
+  };
+
+  page.onLoadStarted = function () {
+    consoleAndFileLog('Viewport is loading');
+  };
+
+  page.onLoadFinished = pageLoaded;
+
   consoleAndFileLog('Loading viewport source');
   var viewport = fs.read('viewport.html');
   consoleAndFileLog('Attaching source');
