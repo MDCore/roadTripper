@@ -3,9 +3,18 @@ var imagesDirectory = 'images';
 var captureLog = 'capturelog.txt';
 var lastPositionLog = 'lastposition.txt';
 var logToDebug = false;
-var secondsToWaitForPageToRenderBeforeRestarting = 40;
-var screenshotsToSaveBeforeReloadingPage = 10;
+var secondsToWaitForPageToRenderBeforeRestarting = 60;
+var screenshotsToSaveBeforeReloadingPage = 300;
+var skipFirst = true;
 /* --- Config ----------------------- */
+
+if (phantom.args.length !== 0) {
+    phantom.args.forEach(function (arg, i) {
+		if (arg == 'noskipfirst') {
+			skipFirst = false;
+		}
+    });
+}
 
 var positionQueue = null;
 var fs = require('fs');
@@ -25,7 +34,7 @@ var page = setupPage();
 var tileRequestSnippet = "googleapis.com/cbk?output=tile";
 var atLeastOneRequestReceived = false;
 var outstandingRequests = 0;
-var noOfScreenshotsSaved = 0;
+var noOfPositionsVisited = 0;
 var lastPositionSaved = null;
 
  function pageLoaded(status) {
@@ -65,17 +74,16 @@ function startWaitLoop() {
           phantom.exit();
         }
 
-        if (currentPosition != lastPositionSaved) {
+        if (currentPosition != lastPositionSaved & (noOfPositionsVisited > 0 | skipFirst == false)) {
           /* save the newly loaded image */
-          noOfScreenshotsSaved++;
           lastPositionSaved = currentPosition;
-          consoleAndFileLog('Saving screenshot #'+noOfScreenshotsSaved+' at '+currentPosition);
+          consoleAndFileLog('Saving position #'+noOfPositionsVisited+' at '+currentPosition);
           page.render(imagesDirectory+fs.separator +friendlyTimestamp()+' '+currentPosition+'.jpg');
 
           /* log the current position */
           logLastPosition(currentPosition);
 
-          if (noOfScreenshotsSaved % screenshotsToSaveBeforeReloadingPage == 0 && noOfScreenshotsSaved > 0) {
+          if (noOfPositionsVisited % screenshotsToSaveBeforeReloadingPage == 0 && noOfPositionsVisited > 0) {
             setupPage();
             return false;
           }
@@ -85,6 +93,7 @@ function startWaitLoop() {
           consoleAndFileLog('We were just here. Moving swiftly on.');
         }
 
+        noOfPositionsVisited++;
         atLeastOneRequestReceived = false;
 
         page.evaluate(function() {
@@ -100,7 +109,8 @@ function startWaitLoop() {
 
 function startTheRestartTheProcessTimeout() {
   restartTheProcessTimeoutId = window.setTimeout(function() {
-    consoleAndFileLog("Ooops. Looks like things got stuck. Let's restart. ("+atLeastOneRequestReceived+', '+outstandingRequests+')');
+    consoleAndFileLog("Ooops. Looks like things got stuck. Let's quit. ("+atLeastOneRequestReceived+', '+outstandingRequests+')');
+    phantom.exit();
     window.clearTimeout(waitingForPanoLoadIntervalId);
     setupPage();
   }, secondsToWaitForPageToRenderBeforeRestarting*1000);
