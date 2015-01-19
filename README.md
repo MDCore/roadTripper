@@ -16,6 +16,15 @@ It's clunky and error-prone. You will find you have to go back and re-capture im
 It will also get lost. This script was originally designed to go along a national highway, without detours, and it wasn't very good at that.
 There is more to come though!
 
+#BABYSITTING
+Having problems with it getting lost at a certain point?
+* Open up viewport.html in your browser
+* Append #controls to the URL
+* Press alt-c and paste the last good lat,long,heading coordinates (from the image filename*
+* get to the new position you want, perhaps by double-clicking or manually selecting the correct link
+* press alt-p and copy the new lat,long,heading into your lastposition.txt
+* try again at the command line
+
 # PLANNED FEATURES
 * Use Google Directions API to follow a route (no more geting lost).
   * This includes a tool for easily selecting a route.

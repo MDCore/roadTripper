@@ -12,9 +12,11 @@ document.oldCreateElement = document.createElement; document.createElement = fun
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js" type="text/javascript"></script>
 
 <script type="text/javascript">
-var panorama = null;
-var map;
-var debug = false;
+var panorama = null, map, debug = false;
+
+if (window.location.hash == '#controls') {
+  debug = true;
+}
 
 function initialize(latLongHeading) {
   var originalLatLongHeading = latLongHeading;
@@ -51,7 +53,9 @@ function initialize(latLongHeading) {
       zoom: 1
     }
   };
+
   if (debug) {
+    panoramaOptions.disableDefaultUI = false;
     panoramaOptions.linksControl = true;
     panoramaOptions.navigationControl = true;
   }
@@ -179,6 +183,7 @@ html, body { padding: 0; margin: 0; }
   Position: <input type="text" id="copyLatLongHeading" readonly="readonly" /><br />
   <button style="clear: both" accesskey="M" onclick="moveToNextLink();">Move</button>
   <button style="clear: both" accesskey="C" onclick="manualCoordinates();">Manual Coordinates</button>
+  <button style="clear: both" accesskey="P" onclick="window.prompt('Current Position', getCurrentPosition());">Current Position<
   <br />
   <div id="recentPositions">
   </div>
