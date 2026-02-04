@@ -1,0 +1,25 @@
+{
+  "name": "roadtripper",
+  "version": "1.0.0",
+  "description": "A script which navigates across Street View links and takes date stamped screenshots for making time-lapses!",
+  "main": "roadTripper.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MDCore/roadTripper.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/MDCore/roadTripper/issues"
+  },
+  "homepage": "https://github.com/MDCore/roadTripper",
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "playwright": "^1.58.1"
+  }
+}

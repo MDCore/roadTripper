@@ -1,35 +1,49 @@
-# roadTripper
-A script which navigates across Street View links and takes date stamped screenshots for making time-lapses!
+# RoadTripper Rebuilt
 
-## Requirements
-PhantomJS (http://code.google.com/p/phantomjs/)
+A modern reconstruction of the original RoadTripper, now powered by Playwright and a route-aware navigation engine.
 
-## USAGE
-* create `lastposition.txt` and add a Latitude,Longitude,Heading e.g.: `-34.143238,18.929973,312.9375`
-* from the command line run: `phantomjs roadTripper.js`
+## Prerequisites
 
-* images will be saved to the configured images folder, default `images`  in the current folder
-* the time and position of each image will be logged in the configured capturelog file, default `capturelog.txt`
+- Node.js (v18+)
+- A Google Maps API Key (with Directions API and Maps JavaScript API enabled)
 
-# CAVEATS
-It's clunky and error-prone. You will find you have to go back and re-capture images which means manually editing `lastposition.txt`.
-It will also get lost. This script was originally designed to go along a national highway, without detours, and it wasn't very good at that.
-There is more to come though!
+## Setup
 
-#BABYSITTING
-Having problems with it getting lost at a certain point?
-* Open up viewport.html in your browser
-* Append #controls to the URL
-* Press alt-c and paste the last good lat,long,heading coordinates (from the image filename*
-* get to the new position you want, perhaps by double-clicking or manually selecting the correct link
-* press alt-p and copy the new lat,long,heading into your lastposition.txt
-* try again at the command line
+1.  Clone the repository.
+2.  Install dependencies:
+    ```bash
+    npm install
+    ```
+3.  Create a `.env` file in the root directory:
+    ```env
+    GOOGLE_MAPS_API_KEY=your_api_key_here
+    ```
 
-# PLANNED FEATURES
-* Use Google Directions API to follow a route (no more geting lost).
-  * This includes a tool for easily selecting a route.
-* A tool for easily re-capturing bad images.
+## Usage
 
-## LICENSE
-roadTripper's source code is licensed under the
-[GNU General Public License](http://www.gnu.org/licenses/gpl.html).
+### 1. Generate a Route
+Use the Route Picker to define your journey:
+```bash
+cd picker
+npm install
+npm run dev
+```
+1.  Open `http://localhost:5173`.
+2.  Click on the map to set a **Start** point.
+3.  Click again to set an **End** point.
+4.  Click **Calculate Route**.
+5.  Click **Export Route** to download `route.json`.
+6.  Move the `route.json` file to the root of the `roadTripper` project.
+
+### 2. Run the Navigator
+Follow the route and capture images:
+```bash
+cd ..
+node navigator/index.js
+```
+The script will launch a browser, follow the route Pano-by-Pano, and save screenshots to the `output/` directory.
+
+## Technical Details
+- **Picker**: Built with Vite + React and `@react-google-maps/api`.
+- **Navigator**: Node.js script using Playwright to automate a local `viewport.html`.
+- **Logic**: Uses bearing calculations to ensure the Street View camera follows the pre-planned route coordinates accurately.

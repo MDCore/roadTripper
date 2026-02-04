@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>RoadTripper Viewport</title>
+  <style>
+    html, body, #pano { height: 100%; margin: 0; padding: 0; }
+  </style>
+</head>
+<body>
+  <div id="pano"></div>
+  <script>
+    let panorama;
+
+    function initPanorama(lat, lng, heading) {
+      panorama = new google.maps.StreetViewPanorama(
+        document.getElementById("pano"),
+        {
+          position: { lat, lng },
+          pov: { heading: heading || 0, pitch: 0 },
+          visible: true,
+          disableDefaultUI: true
+        }
+      );
+      return !!panorama;
+    }
+
+    function getLinks() {
+      return panorama.getLinks();
+    }
+
+    function moveToPano(panoId) {
+      panorama.setPano(panoId);
+    }
+
+    function getPosition() {
+      const pos = panorama.getPosition();
+      return { lat: pos.lat(), lng: pos.lng(), heading: panorama.getPov().heading };
+    }
+  </script>
+</body>
+</html>
