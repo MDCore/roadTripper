@@ -42,6 +42,21 @@ function calculateBearing(lat1, lon1, lat2, lon2) {
   return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
 }
 
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371e3; // metres
+  const phi1 = lat1 * Math.PI / 180;
+  const phi2 = lat2 * Math.PI / 180;
+  const dPhi = (lat2 - lat1) * Math.PI / 180;
+  const dLambda = (lon2 - lon1) * Math.PI / 180;
+
+  const a = Math.sin(dPhi / 2) * Math.sin(dPhi / 2) +
+    Math.cos(phi1) * Math.cos(phi2) *
+    Math.sin(dLambda / 2) * Math.sin(dLambda / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c;
+}
+
 function getBestLink(links, targetBearing) {
   if (!links || links.length === 0) return null;
   let closestLink = null;
@@ -143,47 +158,71 @@ async function run() {
   );
 
   // Navigation Loop
-  for (let routeStep = startStep; routeStep < route.length; routeStep++) {
-    const target = route[routeStep];
+  let routeIndex = startStep;
+  console.log(`${route.length} steps remaining.`)
+  while (routeIndex < route.length) {
     let bestLink = null;
     let targetBearing = 0;
+    let currentPos = null;
 
     // Retry loop to wait for links to load
     for (let attempt = 0; attempt < 10; attempt++) {
-      const current = await page.evaluate(() => getPosition());
-      if (!current) {
+      currentPos = await page.evaluate(() => getPosition());
+      if (!currentPos) {
         console.error('Error: Lost panorama position. Retrying...');
         await page.waitForTimeout(1000);
         continue;
       }
 
-      targetBearing = calculateBearing(current.lat, current.lng, target.lat, target.lng);
+      const target = route[routeIndex];
+      const distToTarget = calculateDistance(currentPos.lat, currentPos.lng, target.lat, target.lng);
+      console.log(`Target ${routeIndex} - Dist to target: ${distToTarget.toFixed(1)}m`);
+
+      if (distToTarget < 25) { // Threshold for reaching a route point
+        console.log(`Reached target point ${routeIndex}.`);
+        routeIndex++;
+        if (routeIndex >= route.length) break;
+        // Re-evaluate immediately with next target
+        continue;
+      }
+
+      targetBearing = calculateBearing(currentPos.lat, currentPos.lng, target.lat, target.lng);
       const links = await page.evaluate(() => getLinks());
       bestLink = getBestLink(links, targetBearing);
 
       if (bestLink) break;
 
       if (attempt < 9) {
-        console.log(`Waiting for connectivity at step ${routeStep} (attempt ${attempt + 1})...`);
+        console.log(`Waiting for connectivity at target ${routeIndex} (attempt ${attempt + 1})...`);
         await page.waitForTimeout(1000);
       }
     }
 
+    if (routeIndex >= route.length) break;
+
     if (bestLink) {
-      await page.evaluate(({ panoId, heading }) => moveToPano(panoId, heading), { panoId: bestLink.pano, heading: targetBearing });
+      // Use the link's heading for the POV so we face exactly where we are moving
+      // but still move towards the targetBearing
+      await page.evaluate(({ panoId, heading }) => moveToPano(panoId, heading), {
+        panoId: bestLink.pano,
+        heading: bestLink.heading
+      });
 
       // Wait for network to be idle (tiles loaded)
       await page.waitForLoadState('networkidle');
       // Additional safety wait
       await page.waitForTimeout(STEP_DELAY);
 
-      const currentPos = await page.evaluate(() => getPosition());
+      const postMovePos = await page.evaluate(() => getPosition());
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const filename = `output/${timestamp}_${currentPos.lat}_${currentPos.lng}.jpg`;
+      const filename = `output/${timestamp}_${postMovePos.lat}_${postMovePos.lng}.jpg`;
 
       await page.screenshot({ path: filename, type: 'jpeg', quality: 90 });
-      console.log(`Captured step ${routeStep}: ${filename}`);
-      saveState(routeStep, currentPos);
+      console.log(`Captured: ${filename} (Facing: ${bestLink.heading.toFixed(1)}°)`);
+      saveState(routeIndex, postMovePos);
+    } else {
+      console.warn(`No suitable links found towards target ${routeIndex}. Skipping to next target.`);
+      routeIndex++;
     }
   }
 
