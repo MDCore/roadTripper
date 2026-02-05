@@ -25,7 +25,7 @@ function saveState(index, currentPos) {
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
   }
-  fs.writeFileSync(STATE_FILE, JSON.stringify({ 
+  fs.writeFileSync(STATE_FILE, JSON.stringify({
     lastStep: index,
     lastPano: currentPos.pano,
     lastLat: currentPos.lat,
@@ -71,16 +71,13 @@ async function run() {
   if (process.env.NAVIGATOR_START_INDEX) {
     startStep = parseInt(process.env.NAVIGATOR_START_INDEX, 10);
     console.log(`Manual override: starting at index ${startStep}`);
-  } else if (process.env.NAVIGATOR_FORCE_RESHOOT === 'true') {
-    console.log('Force reshoot: starting from the beginning.');
-    startStep = 1;
   } else if (state && state.lastStep !== undefined) {
     startStep = state.lastStep;
     console.log(`Resuming from last saved index: starting at ${startStep}`);
   }
 
   if (startStep >= route.length) {
-    console.log('Already completed the route. Use NAVIGATOR_FORCE_RESHOOT=true to restart.');
+    console.log('Already completed the route.');
     process.exit(0);
   }
 
@@ -134,10 +131,10 @@ async function run() {
   await page.evaluate(({ lat, lng, heading, panoId }) => initPanorama(lat, lng, heading, panoId), { ...startPoint, heading: initialBearing, panoId: lastPano });
 
   // Wait for panorama and connectivity to be ready
-  await page.waitForFunction(() => 
-    typeof panorama !== 'undefined' && 
-    panorama.getPosition() && 
-    panorama.getLinks() && 
+  await page.waitForFunction(() =>
+    typeof panorama !== 'undefined' &&
+    panorama.getPosition() &&
+    panorama.getLinks() &&
     panorama.getLinks().length > 0
   );
 
@@ -161,7 +158,7 @@ async function run() {
       bestLink = getBestLink(links, targetBearing);
 
       if (bestLink) break;
-      
+
       if (attempt < 9) {
         console.log(`Waiting for connectivity at step ${routeStep} (attempt ${attempt + 1})...`);
         await page.waitForTimeout(1000);
