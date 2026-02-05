@@ -232,6 +232,7 @@ function App() {
             position={navigatorPosition}
             label="NAV"
             icon="http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+            onDblClick={() => setInfoWindow('nav')}
           />
         )}
 
@@ -248,7 +249,11 @@ function App() {
 
         {infoWindow && (
           <OverlayView
-            position={infoWindow === 'start' ? start : end}
+            position={
+              infoWindow === 'start' ? start : 
+              infoWindow === 'end' ? end : 
+              navigatorPosition
+            }
             mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
           >
             <div
@@ -261,7 +266,15 @@ function App() {
               }}
             >
               <img
-                src={`https://maps.googleapis.com/maps/api/streetview?size=300x200&location=${(infoWindow === 'start' ? start : end).lat},${(infoWindow === 'start' ? start : end).lng}&key=${import.meta.env.GOOGLE_MAPS_API_KEY}`}
+                src={`https://maps.googleapis.com/maps/api/streetview?size=300x200&location=${
+                  (infoWindow === 'start' ? start : 
+                   infoWindow === 'end' ? end : 
+                   navigatorPosition).lat
+                },${
+                  (infoWindow === 'start' ? start : 
+                   infoWindow === 'end' ? end : 
+                   navigatorPosition).lng
+                }&key=${import.meta.env.GOOGLE_MAPS_API_KEY}`}
                 alt="Street View Preview"
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />
