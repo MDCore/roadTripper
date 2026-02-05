@@ -7,14 +7,14 @@ const containerStyle = {
 };
 
 const center = {
-  lat: -34.397,
-  lng: 150.644
+  lat: -33.91,
+  lng: 18.42
 };
 
 function App() {
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ""
+    googleMapsApiKey: import.meta.env.GOOGLE_MAPS_API_KEY || ""
   });
 
   const [map, setMap] = useState(null);
@@ -86,7 +86,7 @@ function App() {
         {end && <Marker position={end} label="End" />}
         {directions && <DirectionsRenderer directions={directions} />}
       </GoogleMap>
-      
+
       <div style={{ position: 'absolute', top: 10, left: 10, background: 'white', padding: 10, borderRadius: 5, zIndex: 1 }}>
         <button onClick={() => { setStart(null); setEnd(null); setDirections(null); }}>Clear Points</button>
         {start && end && !directions && <button style={{ marginLeft: 10 }} onClick={calculateRoute}>Calculate Route</button>}

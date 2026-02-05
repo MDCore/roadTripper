@@ -42,8 +42,3 @@ cd ..
 node navigator/index.js
 ```
 The script will launch a browser, follow the route Pano-by-Pano, and save screenshots to the `output/` directory.
-
-## Technical Details
-- **Picker**: Built with Vite + React and `@react-google-maps/api`.
-- **Navigator**: Node.js script using Playwright to automate a local `viewport.html`.
-- **Logic**: Uses bearing calculations to ensure the Street View camera follows the pre-planned route coordinates accurately.

@@ -28,12 +28,16 @@
       return panorama.getLinks();
     }
 
-    function moveToPano(panoId) {
+    function moveToPano(panoId, heading) {
       panorama.setPano(panoId);
+      if (heading !== undefined) {
+        panorama.setPov({ heading: heading, pitch: 0 });
+      }
     }
 
     function getPosition() {
       const pos = panorama.getPosition();
+      if (!pos) return null;
       return { lat: pos.lat(), lng: pos.lng(), heading: panorama.getPov().heading };
     }
   </script>
