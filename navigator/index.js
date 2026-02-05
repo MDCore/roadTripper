@@ -4,10 +4,12 @@ const path = require('path');
 require('dotenv').config();
 
 const API_KEY = process.env.GOOGLE_MAPS_API_KEY;
-const ROUTE_FILE = path.resolve(__dirname, '../route.json');
+const ROUTE_FILE = path.resolve(__dirname, '../output/route.json');
 const VIEWPORT_FILE = `file://${path.resolve(__dirname, 'viewport.html')}`;
 const STATE_FILE = path.resolve(__dirname, '../output/navigator_state.json');
 const STEP_DELAY = parseInt(process.env.NAVIGATOR_STEP_DELAY || '5000', 10);
+const WIDTH = parseInt(process.env.NAVIGATOR_WIDTH || '1920', 10);
+const HEIGHT = parseInt(process.env.NAVIGATOR_HEIGHT || '1080', 10);
 
 function loadState() {
   if (fs.existsSync(STATE_FILE)) {
@@ -82,7 +84,9 @@ async function run() {
   }
 
   const browser = await chromium.launch({ headless: false });
-  const page = await browser.newPage();
+  const page = await browser.newPage({
+    viewport: { width: WIDTH, height: HEIGHT }
+  });
 
   // Forward browser logs to terminal
   page.on('console', msg => console.log('PAGE LOG:', msg.text()));
