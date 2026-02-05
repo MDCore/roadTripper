@@ -65,7 +65,9 @@ function getBestLink(links, targetBearing) {
   for (const link of links) {
     let diff = Math.abs(link.heading - targetBearing);
     if (diff > 180) diff = 360 - diff;
-    if (diff < minDiff) {
+    
+    // Threshold: Don't pick a link that is more than 90 degrees away from our target
+    if (diff < minDiff && diff < 90) {
       minDiff = diff;
       closestLink = link;
     }
@@ -159,6 +161,9 @@ async function run() {
 
   // Navigation Loop
   let routeIndex = startStep;
+  let panoHistory = [];
+  let stuckCount = 0; // Track how many times we've skipped without moving
+
   console.log(`${route.length} steps remaining.`)
   while (routeIndex < route.length) {
     let bestLink = null;
@@ -174,13 +179,20 @@ async function run() {
         continue;
       }
 
+      if (panoHistory.includes(currentPos.pano)) {
+        console.warn(`LOOP DETECTION: Have been to pano ${currentPos.pano} before!`);
+      }
+      panoHistory.push(currentPos.pano);
+      if (panoHistory.length > 10) panoHistory.shift();
+
       const target = route[routeIndex];
       const distToTarget = calculateDistance(currentPos.lat, currentPos.lng, target.lat, target.lng);
-      console.log(`Target ${routeIndex} - Dist to target: ${distToTarget.toFixed(1)}m`);
+      console.log(`Target ${routeIndex} - Dist to target: ${distToTarget.toFixed(1)}m (Pano: ${currentPos.pano})`);
 
       if (distToTarget < 25) { // Threshold for reaching a route point
         console.log(`Reached target point ${routeIndex}.`);
         routeIndex++;
+        stuckCount = 0; // Reset stuck count when we advance target via proximity
         if (routeIndex >= route.length) break;
         // Re-evaluate immediately with next target
         continue;
@@ -188,6 +200,7 @@ async function run() {
 
       targetBearing = calculateBearing(currentPos.lat, currentPos.lng, target.lat, target.lng);
       const links = await page.evaluate(() => getLinks());
+      console.log(`Found ${links ? links.length : 0} available links.`);
       bestLink = getBestLink(links, targetBearing);
 
       if (bestLink) break;
@@ -201,6 +214,8 @@ async function run() {
     if (routeIndex >= route.length) break;
 
     if (bestLink) {
+      stuckCount = 0; // Reset stuck count because we found a valid movement
+      console.log(`Moving to pano: ${bestLink.pano} (Heading: ${bestLink.heading.toFixed(1)}°, Target Bearing: ${targetBearing.toFixed(1)}°)`);
       // Use the link's heading for the POV so we face exactly where we are moving
       // but still move towards the targetBearing
       await page.evaluate(({ panoId, heading }) => moveToPano(panoId, heading), {
@@ -214,6 +229,10 @@ async function run() {
       await page.waitForTimeout(STEP_DELAY);
 
       const postMovePos = await page.evaluate(() => getPosition());
+      if (postMovePos.pano === currentPos.pano) {
+        console.warn(`WARNING: Panorama did not change after move! Still at ${postMovePos.pano}`);
+      }
+      
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const filename = `output/${timestamp}_${postMovePos.lat}_${postMovePos.lng}.jpg`;
 
@@ -221,7 +240,18 @@ async function run() {
       console.log(`Captured: ${filename} (Facing: ${bestLink.heading.toFixed(1)}°)`);
       saveState(routeIndex, postMovePos);
     } else {
-      console.warn(`No suitable links found towards target ${routeIndex}. Skipping to next target.`);
+      stuckCount++;
+      console.warn(`No suitable links found towards target ${routeIndex}. (Stuck count: ${stuckCount})`);
+      
+      if (stuckCount >= 3) {
+        const jumpTarget = route[routeIndex];
+        console.log(`STUCK: Teleporting to next route point: ${jumpTarget.lat}, ${jumpTarget.lng}`);
+        const bearing = calculateBearing(currentPos.lat, currentPos.lng, jumpTarget.lat, jumpTarget.lng);
+        await page.evaluate(({ lat, lng, heading }) => initPanorama(lat, lng, heading), { ...jumpTarget, heading: bearing });
+        await page.waitForTimeout(STEP_DELAY);
+        stuckCount = 0;
+      }
+      
       routeIndex++;
     }
   }
