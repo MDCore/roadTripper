@@ -18,8 +18,13 @@
   <div id="pano"></div>
   <script>
     let panorama;
+    let streetViewService;
 
-    function initPanorama(lat, lng, heading, panoId) {
+    function initPanorama(lat, lng, heading, panoId, preferNewest) {
+      // Initialize Street View Service if not already done
+      if (!streetViewService) {
+        streetViewService = new google.maps.StreetViewService();
+      }
       const options = {
         pov: { heading: heading || 0, pitch: 0 },
         visible: true,
@@ -37,8 +42,14 @@
         scrollwheel: false,
         imageDateControl: false
       };
-      
-      if (panoId) {
+
+      // Prefer outdoor (official Google) imagery over user-contributed content
+      if (preferNewest) {
+        options.source = google.maps.StreetViewSource.OUTDOOR;
+      }
+
+      if (panoId && !preferNewest) {
+        // Only use specific pano ID if not preferring newest
         options.pano = panoId;
       } else {
         options.position = { lat, lng };
@@ -48,6 +59,15 @@
         document.getElementById("pano"),
         options
       );
+
+      // Listen for status changes and errors
+      panorama.addListener('status_changed', () => {
+        const status = panorama.getStatus();
+        if (status !== 'OK') {
+          console.error(`Panorama status: ${status}`);
+        }
+      });
+
       return !!panorama;
     }
 
@@ -65,12 +85,91 @@
     function getPosition() {
       const pos = panorama.getPosition();
       if (!pos) return null;
-      return { 
-        lat: pos.lat(), 
-        lng: pos.lng(), 
+
+      let imageDate = null;
+      try {
+        if (typeof panorama.getImageDate === 'function') {
+          const date = panorama.getImageDate();
+          imageDate = date ? date.toISOString() : null;
+        }
+      } catch (e) {
+        console.warn('Could not get image date:', e.message);
+      }
+
+      return {
+        lat: pos.lat(),
+        lng: pos.lng(),
         heading: panorama.getPov().heading,
-        pano: panorama.getPano()
+        pano: panorama.getPano(),
+        imageDate: imageDate
       };
+    }
+
+    async function getPanoMetadata(panoId) {
+      return new Promise((resolve) => {
+        streetViewService.getPanorama({pano: panoId}, (data, status) => {
+          if (status === 'OK' && data) {
+            const imageDate = data.imageDate ? new Date(data.imageDate).toISOString() : null;
+            resolve({
+              imageDate: imageDate,
+              location: data.location,
+              links: data.links
+            });
+          } else {
+            resolve(null);
+          }
+        });
+      });
+    }
+
+    async function getPositionWithMetadata() {
+      const pos = panorama.getPosition();
+      if (!pos) return null;
+
+      const panoId = panorama.getPano();
+
+      // Try to get date from panorama first
+      let imageDate = null;
+      try {
+        if (typeof panorama.getImageDate === 'function') {
+          const date = panorama.getImageDate();
+          imageDate = date ? date.toISOString() : null;
+        }
+      } catch (e) {
+        console.warn('Could not get image date from panorama:', e.message);
+      }
+
+      // If no date from panorama, try metadata service
+      if (!imageDate && panoId) {
+        try {
+          const metadata = await getPanoMetadata(panoId);
+          if (metadata && metadata.imageDate) {
+            imageDate = metadata.imageDate;
+          }
+        } catch (e) {
+          console.warn('Could not get metadata:', e.message);
+        }
+      }
+
+      return {
+        lat: pos.lat(),
+        lng: pos.lng(),
+        heading: panorama.getPov().heading,
+        pano: panoId,
+        imageDate: imageDate
+      };
+    }
+
+    function getImageDate() {
+      try {
+        if (typeof panorama.getImageDate === 'function') {
+          const date = panorama.getImageDate();
+          return date ? date.toISOString() : null;
+        }
+      } catch (e) {
+        console.warn('Could not get image date:', e.message);
+      }
+      return null;
     }
   </script>
 </body>
