@@ -301,7 +301,7 @@ async function run() {
         logWarn(`WARNING: Panorama did not change after move! Still at ${postMovePos.pano}`);
         stuckCount++; // Increment stuck count when panorama doesn't change
       }
-
+      log(`Capturing pano ${postMovePos.pano} at ${postMovePos.lat}, ${postMovePos.lng}`)
       // Move mouse out of viewport to avoid cursor artifacts
       await page.mouse.move(0, 0);
       await page.waitForTimeout(500);
@@ -309,7 +309,6 @@ async function run() {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const filename = path.join(IMAGES_DIR, `${timestamp}_${postMovePos.lat}_${postMovePos.lng}.jpg`);
 
-      await page.screenshot({ path: filename, type: 'jpeg', quality: 90 });
 
       // Log image date/age if available
       let ageStr = ' unknown';
@@ -320,6 +319,7 @@ async function run() {
         ageStr = ` [${imageYear}-${String(imageMonth).padStart(2, '0')}]`;
       }
 
+      await page.screenshot({ path: filename, type: 'jpeg', quality: 90 });
       log(`📷 Captured: ${path.basename(filename)} (Facing: ${bestLink.heading.toFixed(1)}°)${ageStr}`);
       saveState(routeIndex, postMovePos);
 
