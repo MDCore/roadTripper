@@ -393,6 +393,26 @@ function App() {
             {' '}({Math.round((navigatorStateData.lastStep / path.length) * 100)}% complete)
           </div>
         )}
+
+        {(start || end || navigatorPosition) && (
+          <div style={{ marginTop: 15, fontSize: '13px', color: '#333', borderTop: '1px solid #ddd', paddingTop: 10 }}>
+            {start && (
+              <div style={{ marginBottom: 5 }}>
+                <strong>Start:</strong> {start.lat.toFixed(6)}, {start.lng.toFixed(6)}
+              </div>
+            )}
+            {end && (
+              <div style={{ marginBottom: 5 }}>
+                <strong>End:</strong> {end.lat.toFixed(6)}, {end.lng.toFixed(6)}
+              </div>
+            )}
+            {navigatorPosition && (
+              <div>
+                <strong>Nav:</strong> {navigatorPosition.lat.toFixed(6)}, {navigatorPosition.lng.toFixed(6)}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   ) : <></>;
