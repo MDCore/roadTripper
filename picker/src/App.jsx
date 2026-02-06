@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { GoogleMap, useJsApiLoader, MarkerF, OverlayView, PolylineF } from '@react-google-maps/api';
+import { calculateDistance, findNearestWaypointIndex } from './utils';
 
 const containerStyle = {
   width: '100vw',
@@ -25,6 +26,7 @@ function App() {
 
   const [infoWindow, setInfoWindow] = useState(null); // 'start' or 'end' or null
   const [navigatorPosition, setNavigatorPosition] = useState(null);
+  const [navigatorStateData, setNavigatorStateData] = useState(null);
 
   const projectFileInputRef = useRef(null);
 
@@ -66,6 +68,37 @@ function App() {
     setPath(null);
     setIsDraggingMarker(false);
   }, []);
+
+  const onNavigatorDragStart = useCallback(() => {
+    setIsDraggingMarker(true);
+  }, []);
+
+  const onNavigatorDragEnd = useCallback((e) => {
+    if (!path || path.length === 0) {
+      setIsDraggingMarker(false);
+      return;
+    }
+
+    const draggedPos = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+
+    // Find nearest waypoint using utility function
+    const nearestIndex = findNearestWaypointIndex(path, draggedPos);
+    const nearestWaypoint = path[nearestIndex];
+
+    // Snap to nearest waypoint
+    setNavigatorPosition(nearestWaypoint);
+
+    // Update complete navigator state for export
+    setNavigatorStateData({
+      lastStep: nearestIndex,
+      lastPano: null, // Reset - can't preserve Street View pano ID
+      lastLat: nearestWaypoint.lat,
+      lastLng: nearestWaypoint.lng
+    });
+
+    setIsDraggingMarker(false);
+    console.log(`Navigator repositioned to waypoint ${nearestIndex} of ${path.length}`);
+  }, [path]);
 
   // Removed old onLoadedStartDragEnd and onLoadedEndDragEnd as they are now unified into the above handlers
 
@@ -144,10 +177,28 @@ function App() {
       document.body.appendChild(downloadAnchorNode);
       downloadAnchorNode.click();
       downloadAnchorNode.remove();
-      
+
       alert(`Route exported! Please place this file in projects/${projectName}/route.json`);
     }
   }, [path]);
+
+  const exportNavigatorState = useCallback(() => {
+    if (navigatorStateData) {
+      const projectName = prompt("Enter project name (e.g. N2):");
+      if (!projectName) return;
+
+      const dataStr = "data:text/json;charset=utf-8," +
+        encodeURIComponent(JSON.stringify(navigatorStateData, null, 2));
+      const downloadAnchorNode = document.createElement('a');
+      downloadAnchorNode.setAttribute("href", dataStr);
+      downloadAnchorNode.setAttribute("download", `${projectName}_navigator_state.json`);
+      document.body.appendChild(downloadAnchorNode);
+      downloadAnchorNode.click();
+      downloadAnchorNode.remove();
+
+      alert(`Navigator state exported! Replace projects/${projectName}/navigator_state.json with this file.`);
+    }
+  }, [navigatorStateData]);
 
   const handleProjectLoad = (event) => {
     const files = Array.from(event.target.files);
@@ -173,6 +224,7 @@ function App() {
                 }
               }
             } else if (file.name.includes('navigator_state.json')) {
+              setNavigatorStateData(json); // Store complete state
               if (json.lastLat && json.lastLng) {
                 setNavigatorPosition({ lat: json.lastLat, lng: json.lastLng });
               }
@@ -226,6 +278,9 @@ function App() {
             position={navigatorPosition}
             label="NAV"
             icon="http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+            draggable={true}
+            onDragStart={onNavigatorDragStart}
+            onDragEnd={onNavigatorDragEnd}
             onDblClick={() => setInfoWindow('nav')}
           />
         )}
@@ -310,12 +365,28 @@ function App() {
             multiple
             accept=".json"
           />
-          {navigatorPosition && <button style={{ marginLeft: 10 }} onClick={zoomToNavigator}>Zoom to Navigator</button>}
+          {navigatorPosition && (
+            <>
+              <button style={{ marginLeft: 10 }} onClick={zoomToNavigator}>Zoom to Navigator</button>
+              {navigatorStateData && (
+                <button style={{ marginLeft: 10 }} onClick={exportNavigatorState}>
+                  Export Navigator State
+                </button>
+              )}
+            </>
+          )}
         </div>
 
         {path && (
           <div style={{ marginTop: 10, fontSize: '14px', color: '#555' }}>
             Steps: <strong>{path.length}</strong>
+          </div>
+        )}
+
+        {navigatorStateData && path && (
+          <div style={{ marginTop: 10, fontSize: '14px', color: '#555' }}>
+            Navigator: <strong>Waypoint {navigatorStateData.lastStep + 1}</strong> of {path.length}
+            {' '}({Math.round((navigatorStateData.lastStep / path.length) * 100)}% complete)
           </div>
         )}
       </div>

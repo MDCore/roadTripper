@@ -9,12 +9,12 @@ A modern reconstruction of the original RoadTripper, now powered by Playwright a
 
 ## Setup
 
-1.  Clone the repository.
-2.  Install dependencies:
+1. Clone the repository.
+2. Install dependencies:
     ```bash
     npm install
     ```
-3.  Create a `.env` file in the root directory:
+3. Create a `.env` file in the root directory:
     ```env
     GOOGLE_MAPS_API_KEY=your_api_key_here
     ```
