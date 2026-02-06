@@ -184,19 +184,17 @@ function App() {
 
   const exportNavigatorState = useCallback(() => {
     if (navigatorStateData) {
-      const projectName = prompt("Enter project name (e.g. N2):");
-      if (!projectName) return;
 
       const dataStr = "data:text/json;charset=utf-8," +
         encodeURIComponent(JSON.stringify(navigatorStateData, null, 2));
       const downloadAnchorNode = document.createElement('a');
       downloadAnchorNode.setAttribute("href", dataStr);
-      downloadAnchorNode.setAttribute("download", `${projectName}_navigator_state.json`);
+      downloadAnchorNode.setAttribute("download", `navigator_state.json`);
       document.body.appendChild(downloadAnchorNode);
       downloadAnchorNode.click();
       downloadAnchorNode.remove();
 
-      alert(`Navigator state exported! Replace projects/${projectName}/navigator_state.json with this file.`);
+      alert(`Navigator state exported!`);
     }
   }, [navigatorStateData]);
 
@@ -303,8 +301,8 @@ function App() {
         {infoWindow && (
           <OverlayView
             position={
-              infoWindow === 'start' ? start : 
-              infoWindow === 'end' ? end : 
+              infoWindow === 'start' ? start :
+              infoWindow === 'end' ? end :
               navigatorPosition
             }
             mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
@@ -320,12 +318,12 @@ function App() {
             >
               <img
                 src={`https://maps.googleapis.com/maps/api/streetview?size=300x200&location=${
-                  (infoWindow === 'start' ? start : 
-                   infoWindow === 'end' ? end : 
+                  (infoWindow === 'start' ? start :
+                   infoWindow === 'end' ? end :
                    navigatorPosition).lat
                 },${
-                  (infoWindow === 'start' ? start : 
-                   infoWindow === 'end' ? end : 
+                  (infoWindow === 'start' ? start :
+                   infoWindow === 'end' ? end :
                    navigatorPosition).lng
                 }&key=${import.meta.env.GOOGLE_MAPS_API_KEY}`}
                 alt="Street View Preview"
