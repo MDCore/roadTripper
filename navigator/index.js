@@ -4,9 +4,19 @@ const path = require('path');
 require('dotenv').config();
 
 const API_KEY = process.env.GOOGLE_MAPS_API_KEY;
-const ROUTE_FILE = path.resolve(__dirname, '../output/route.json');
+const PROJECT_NAME = process.argv[2];
+
+if (!PROJECT_NAME) {
+  console.error('Please provide a project name: node navigator/index.js <project-name>');
+  process.exit(1);
+}
+
+const PROJECT_DIR = path.resolve(__dirname, '../projects', PROJECT_NAME);
+const IMAGES_DIR = path.join(PROJECT_DIR, 'images');
+const ROUTE_FILE = path.join(PROJECT_DIR, 'route.json');
+const STATE_FILE = path.join(PROJECT_DIR, 'navigator_state.json');
 const VIEWPORT_FILE = `file://${path.resolve(__dirname, 'viewport.html')}`;
-const STATE_FILE = path.resolve(__dirname, '../output/navigator_state.json');
+
 const STEP_DELAY = parseInt(process.env.NAVIGATOR_STEP_DELAY || '5000', 10);
 const WIDTH = parseInt(process.env.NAVIGATOR_WIDTH || '1920', 10);
 const HEIGHT = parseInt(process.env.NAVIGATOR_HEIGHT || '1080', 10);
@@ -23,9 +33,8 @@ function loadState() {
 }
 
 function saveState(index, currentPos) {
-  const outputDir = path.dirname(STATE_FILE);
-  if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir, { recursive: true });
+  if (!fs.existsSync(PROJECT_DIR)) {
+    fs.mkdirSync(PROJECT_DIR, { recursive: true });
   }
   fs.writeFileSync(STATE_FILE, JSON.stringify({
     lastStep: index,
@@ -77,8 +86,14 @@ function getBestLink(links, targetBearing) {
 
 async function run() {
   if (!fs.existsSync(ROUTE_FILE)) {
-    console.error('route.json not found! Please export a route from the picker first.');
+    console.error(`route.json not found in ${PROJECT_DIR}! Please export a route and place it there.`);
     process.exit(1);
+  }
+
+  // Ensure project and images directory exists
+  if (!fs.existsSync(IMAGES_DIR)) {
+    console.log(`Creating images directory: ${IMAGES_DIR}`);
+    fs.mkdirSync(IMAGES_DIR, { recursive: true });
   }
 
   const route = JSON.parse(fs.readFileSync(ROUTE_FILE, 'utf-8'));
@@ -234,7 +249,7 @@ async function run() {
       }
       
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const filename = `output/${timestamp}_${postMovePos.lat}_${postMovePos.lng}.jpg`;
+      const filename = path.join(IMAGES_DIR, `${timestamp}_${postMovePos.lat}_${postMovePos.lng}.jpg`);
 
       await page.screenshot({ path: filename, type: 'jpeg', quality: 90 });
       console.log(`Captured: ${filename} (Facing: ${bestLink.heading.toFixed(1)}°)`);

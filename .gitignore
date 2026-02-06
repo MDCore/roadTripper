@@ -14,7 +14,7 @@ dist/
 picker/dist/
 
 # Project-specific
-output/
+projects/
 route.json
 
 # Gemini/OpenSpec

@@ -32,13 +32,31 @@ npm run dev
 2.  Click on the map to set a **Start** point.
 3.  Click again to set an **End** point.
 4.  Click **Calculate Route**.
-5.  Click **Export Route** to download `route.json`.
-6.  Move the `route.json` file to the root of the `roadTripper` project.
+5.  Click **Export Route**. You will be prompted for a **Project Name** (e.g., `N2`).
+6.  A file named `<ProjectName>_route.json` will be downloaded.
 
-### 2. Run the Navigator
-Follow the route and capture images:
+### 2. Organize your Project
+Create a folder for your project under the `projects/` directory:
 ```bash
-cd ..
-node navigator/index.js
+mkdir -p projects/N2
+mv ~/Downloads/N2_route.json projects/N2/route.json projects/N2
 ```
-The script will launch a browser, follow the route Pano-by-Pano, and save screenshots to the `output/` directory.
+
+**Project Structure:**
+```
+projects/
+└── <project-name>/
+    ├── route.json           # Required: The exported route
+    ├── navigator_state.json # Auto-generated: Current progress
+    └── images/              # Auto-generated: Captured screenshots
+```
+
+### 3. Run the Navigator
+Follow the route and capture images by providing the project name:
+```bash
+node navigator/index.js <project-name>
+```
+Example: `node navigator/index.js N2`
+
+The script will follow the route Pano-by-Pano and save screenshots to `projects/<project-name>/images/`.
+

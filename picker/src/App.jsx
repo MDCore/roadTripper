@@ -26,8 +26,7 @@ function App() {
   const [infoWindow, setInfoWindow] = useState(null); // 'start' or 'end' or null
   const [navigatorPosition, setNavigatorPosition] = useState(null);
 
-  const routeFileInputRef = useRef(null);
-  const navigatorFileInputRef = useRef(null);
+  const projectFileInputRef = useRef(null);
 
   const onMapClick = useCallback((e) => {
     if (infoWindow) {
@@ -135,60 +134,55 @@ function App() {
 
   const exportRoute = useCallback(() => {
     if (path) {
+      const projectName = prompt("Enter project name (e.g. N2):");
+      if (!projectName) return;
+
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(path));
       const downloadAnchorNode = document.createElement('a');
       downloadAnchorNode.setAttribute("href", dataStr);
-      downloadAnchorNode.setAttribute("download", "route.json");
+      downloadAnchorNode.setAttribute("download", `${projectName}_route.json`);
       document.body.appendChild(downloadAnchorNode);
       downloadAnchorNode.click();
       downloadAnchorNode.remove();
+      
+      alert(`Route exported! Please place this file in projects/${projectName}/route.json`);
     }
   }, [path]);
 
-  const handleRouteFileUpload = (event) => {
-    const file = event.target.files[0];
-    if (file) {
+  const handleProjectLoad = (event) => {
+    const files = Array.from(event.target.files);
+    if (files.length > 0) {
       setPath(null);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const json = JSON.parse(e.target.result);
-          setPath(json);
-          if (json.length > 0) {
-            setStart(json[0]);
-            setEnd(json[json.length - 1]);
+      setNavigatorPosition(null);
+      setInfoWindow(null);
 
-            // Auto-zoom to loaded route
-            if (map) {
-              const bounds = new window.google.maps.LatLngBounds();
-              json.forEach(point => bounds.extend(point));
-              map.fitBounds(bounds);
+      files.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const json = JSON.parse(e.target.result);
+            if (file.name.includes('route.json')) {
+              setPath(json);
+              if (json.length > 0) {
+                setStart(json[0]);
+                setEnd(json[json.length - 1]);
+                if (map) {
+                  const bounds = new window.google.maps.LatLngBounds();
+                  json.forEach(point => bounds.extend(point));
+                  map.fitBounds(bounds);
+                }
+              }
+            } else if (file.name.includes('navigator_state.json')) {
+              if (json.lastLat && json.lastLng) {
+                setNavigatorPosition({ lat: json.lastLat, lng: json.lastLng });
+              }
             }
+          } catch (error) {
+            console.error(`Error parsing ${file.name}`, error);
           }
-          setInfoWindow(null);
-        } catch (error) {
-          console.error("Error parsing route.json", error);
-        }
-      };
-      reader.readAsText(file);
-    }
-  };
-
-  const handleNavigatorFileUpload = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const json = JSON.parse(e.target.result);
-          if (json.lastLat && json.lastLng) {
-            setNavigatorPosition({ lat: json.lastLat, lng: json.lastLng });
-          }
-        } catch (error) {
-          console.error("Error parsing navigator_state.json", error);
-        }
-      };
-      reader.readAsText(file);
+        };
+        reader.readAsText(file);
+      });
     }
   };
 
@@ -291,8 +285,7 @@ function App() {
           setPath(null);
           setInfoWindow(null);
           setNavigatorPosition(null);
-          if (routeFileInputRef.current) routeFileInputRef.current.value = "";
-          if (navigatorFileInputRef.current) navigatorFileInputRef.current.value = "";
+          if (projectFileInputRef.current) projectFileInputRef.current.value = "";
         }}>Clear All</button>
         <button style={{ marginLeft: 10 }} onClick={zoomToStart} disabled={!start}>Zoom to Start</button>
         <button style={{ marginLeft: 10 }} onClick={zoomToEnd} disabled={!end}>Zoom to End</button>
@@ -308,20 +301,13 @@ function App() {
         </div>
 
         <div style={{ marginTop: 10 }}>
-          <button onClick={() => routeFileInputRef.current.click()}>Load Route File</button>
+          <button onClick={() => projectFileInputRef.current.click()}>Load Project Files</button>
           <input
             type="file"
-            ref={routeFileInputRef}
+            ref={projectFileInputRef}
             style={{ display: 'none' }}
-            onChange={handleRouteFileUpload}
-            accept=".json"
-          />
-          <button style={{ marginLeft: 10 }} onClick={() => navigatorFileInputRef.current.click()}>Load Nav State</button>
-          <input
-            type="file"
-            ref={navigatorFileInputRef}
-            style={{ display: 'none' }}
-            onChange={handleNavigatorFileUpload}
+            onChange={handleProjectLoad}
+            multiple
             accept=".json"
           />
           {navigatorPosition && <button style={{ marginLeft: 10 }} onClick={zoomToNavigator}>Zoom to Navigator</button>}
