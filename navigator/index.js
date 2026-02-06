@@ -247,7 +247,11 @@ async function run() {
       if (postMovePos.pano === currentPos.pano) {
         console.warn(`WARNING: Panorama did not change after move! Still at ${postMovePos.pano}`);
       }
-      
+
+      // Move mouse out of viewport to avoid cursor artifacts
+      await page.mouse.move(0, 0);
+      await page.waitForTimeout(500);
+
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const filename = path.join(IMAGES_DIR, `${timestamp}_${postMovePos.lat}_${postMovePos.lng}.jpg`);
 
