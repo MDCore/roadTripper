@@ -205,6 +205,7 @@ function App() {
     if (files.length > 0) {
       setPath(null);
       setNavigatorPosition(null);
+      setNavigatorStateData(null);
       setInfoWindow(null);
 
       files.forEach(file => {
@@ -235,6 +236,9 @@ function App() {
         };
         reader.readAsText(file);
       });
+
+      // Reset file input so same files can be selected again
+      event.target.value = '';
     }
   };
 
