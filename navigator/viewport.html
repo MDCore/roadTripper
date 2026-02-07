@@ -48,8 +48,8 @@
         options.source = google.maps.StreetViewSource.OUTDOOR;
       }
 
-      if (panoId && !preferNewest) {
-        // Only use specific pano ID if not preferring newest
+      if (panoId) {
+        // Always prioritize the specific pano ID if provided (for resuming state)
         options.pano = panoId;
       } else {
         options.position = { lat, lng };

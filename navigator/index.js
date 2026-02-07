@@ -273,18 +273,21 @@ async function run() {
     panorama.getLinks().length > 0
   );
 
+  log(`Starting navigation - ${route.length - startStep} steps remaining`);
+
+  // Capture screenshot of starting position
+  const startPos = await page.evaluate(() => getPositionWithMetadata());
+  if (startPos) {
+    await captureScreenshot(page, startPos);
+    //saveState(routeIndex, startPos);
+  }
+
   // Navigation Loop
   let routeIndex = startStep;
   let panoHistory = [];
   let stuckCount = 0; // Track how many times we've skipped without moving
   let lastImageDate = null; // Track image date to detect backwards jumps
   let stepsSinceAgeCheck = 0; // Track steps since last age check to avoid checking too frequently
-
-  log(`Starting navigation - ${route.length - startStep} steps remaining`);
-
-
-  //log('early screenshot');
-  //await captureScreenshot(page, panorama.getPosition());
 
   while (routeIndex < route.length) {
     let bestLink = null;
