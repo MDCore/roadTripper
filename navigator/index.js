@@ -1,26 +1,58 @@
+// Expect a project name
+const PROJECT_NAME = process.argv[2];
+if (!PROJECT_NAME) {
+  console.error("Please provide a project name: node navigator/index.js  <project-name>");
+  process.exit(1);
+}
+
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
+// Expect an API key
 const API_KEY = process.env.GOOGLE_MAPS_API_KEY;
-const PROJECT_NAME = process.argv[2];
-
-if (!PROJECT_NAME) {
-  throw new Error("Please provide a project name: node navigator/index.js  <project-name>");
+if (!API_KEY) {
+  throw new Error('GOOGLE_MAPS_API_KEY not found in .env file!');
 }
+
 const PROJECT_DIR = path.resolve(__dirname, '../projects', PROJECT_NAME);
 const IMAGES_DIR = path.join(PROJECT_DIR, 'images');
 const ROUTE_FILE = path.join(PROJECT_DIR, 'route.json');
 const STATE_FILE = path.join(PROJECT_DIR, 'navigator_state.json');
-const VIEWPORT_FILE = `file://${path.resolve(__dirname, 'viewport.html')}`;
 
+// Set up logging to stdout and the logfile
 const { Signale } = require('signale');
 const logFile = fs.createWriteStream(path.join(PROJECT_DIR, 'navigator.log'), { flags: 'a' });
 const log = new Signale({
   stream: [process.stdout, logFile]
 });
+// Catch-all for Sync errors
+process.on('uncaughtException', (err) => {
+  log.fatal('Uncaught Exception:', err);
+  process.exit(1);
+});
+// Catch-all for Async errors
+process.on('unhandledRejection', (reason) => {
+  log.fatal('Unhandled Rejection:', reason);
+  process.exit(1);
+});
 
+// Expect a route file
+if (!fs.existsSync(ROUTE_FILE)) {
+  log.fatal(`route.json not found in project ${PROJECT_DIR}! Please export a route and place it there.`);
+  process.exit(1);
+}
+const route = JSON.parse(fs.readFileSync(ROUTE_FILE, 'utf-8'));
+log.info(`Loaded route with ${route.length} waypoints`);
+
+// Ensure project and images directory exists
+if (!fs.existsSync(IMAGES_DIR)) {
+  log.info(`Creating images directory: ${IMAGES_DIR}`);
+  fs.mkdirSync(IMAGES_DIR, { recursive: true });
+}
+
+// Various defaults
 const STEP_DELAY = parseInt(process.env.NAVIGATOR_STEP_DELAY || '5000', 10);
 const WIDTH = parseInt(process.env.NAVIGATOR_WIDTH || '1920', 10);
 const HEIGHT = parseInt(process.env.NAVIGATOR_HEIGHT || '1080', 10);
@@ -36,7 +68,7 @@ function loadState() {
       console.warn('Warning: Could not parse state file. Starting from scratch.');
     }
   }
-  return null;
+  return { "lastStep": 1 }
 }
 
 function saveState(index, currentPos) {
@@ -80,7 +112,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-function getBestLink(links, targetBearing, relaxBearing = false) {
+function getBestLink(links, targetBearing) {
   if (!links || links.length === 0) return null;
   let closestLink = null;
   let minDiff = 360;
@@ -90,26 +122,12 @@ function getBestLink(links, targetBearing, relaxBearing = false) {
     if (diff > 180) diff = 360 - diff;
 
     // Threshold: Don't pick a link that is more than 90 degrees away from our target
-    const threshold = relaxBearing ? 135 : 90;
-    if (diff < minDiff && diff < threshold) {
+    if (diff < minDiff && diff < 90) {
       minDiff = diff;
       closestLink = link;
     }
   }
   return closestLink;
-}
-
-// Calculate an intermediate point between current position and target
-function getIntermediatePoint(lat1, lon1, lat2, lon2, distanceMeters) {
-  const totalDistance = calculateDistance(lat1, lon1, lat2, lon2);
-  if (totalDistance <= distanceMeters) {
-    return { lat: lat2, lng: lon2 }; // Target is closer than intermediate distance
-  }
-
-  const fraction = distanceMeters / totalDistance;
-  const lat = lat1 + (lat2 - lat1) * fraction;
-  const lng = lon1 + (lon2 - lon1) * fraction;
-  return { lat, lng };
 }
 
 async function captureScreenshot(page, position) {
@@ -136,32 +154,11 @@ async function captureScreenshot(page, position) {
 
 async function run() {
 
-  if (!fs.existsSync(ROUTE_FILE)) {
-    log.fatal(`route.json not found in ${PROJECT_DIR}! Please export a route and place it there.`);
-    process.exit(1);
-  }
-
-  // Ensure project and images directory exists
-  if (!fs.existsSync(IMAGES_DIR)) {
-    log.info(`Creating images directory: ${IMAGES_DIR}`);
-    fs.mkdirSync(IMAGES_DIR, { recursive: true });
-  }
-
-  const route = JSON.parse(fs.readFileSync(ROUTE_FILE, 'utf-8'));
-  log.info(`Loaded route with ${route.length} waypoints`);
-
   // Persistence logic
   const state = loadState();
-  let startStep = 1;
-
-  if (process.env.NAVIGATOR_START_INDEX) {
-    startStep = parseInt(process.env.NAVIGATOR_START_INDEX, 10);
-    log.info(`Manual override: starting at index ${startStep}`);
-  } else if (state && state.lastStep !== undefined) {
-    startStep = state.lastStep;
-    log.info(`Resuming from last saved index: starting at ${startStep}`);
-  }
-
+  startStep = state.lastStep;
+  log.info(`Starting from step ${startStep}`);
+  log.info(state);
   if (startStep >= route.length) {
     log.info('Already completed the route.');
     process.exit(0);
@@ -190,11 +187,6 @@ async function run() {
   });
 
   await page.goto('http://localhost:3000/');
-
-  if (!API_KEY) {
-    log.fatal('GOOGLE_MAPS_API_KEY not found in .env file!');
-    process.exit(1);
-  }
 
   // Inject Google Maps API
   await page.addScriptTag({
@@ -295,8 +287,7 @@ async function run() {
       targetBearing = calculateBearing(currentPos.lat, currentPos.lng, target.lat, target.lng);
       const links = await page.evaluate(() => getLinks());
       log.info(`Found ${links ? links.length : 0} available links`);
-      relaxBearing = false;
-      bestLink = getBestLink(links, targetBearing, relaxBearing);
+      bestLink = getBestLink(links, targetBearing);
 
       if (bestLink) break;
 
@@ -440,7 +431,4 @@ async function run() {
   // end logstream
 }
 
-run().catch(err => {
-  log.fatal(`Fatal error: ${err.message}`);
-  process.exit(1);
-});
+run();
