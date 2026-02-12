@@ -20,6 +20,7 @@
   "homepage": "https://github.com/MDCore/roadTripper",
   "dependencies": {
     "dotenv": "^17.2.3",
-    "playwright": "^1.58.1"
+    "playwright": "^1.58.1",
+    "signale": "^1.4.0"
   }
 }
