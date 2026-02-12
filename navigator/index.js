@@ -456,10 +456,10 @@ async function run() {
         const fullTarget = route[routeIndex];
         const distToTarget = calculateDistance(postMovePos.lat, postMovePos.lng, fullTarget.lat, fullTarget.lng);
 
-        // Try jumping 150m ahead first (like clicking ahead on the map)
-        if (distToTarget > 150) {
-          const intermediatePoint = getIntermediatePoint(postMovePos.lat, postMovePos.lng, fullTarget.lat, fullTarget.lng, 150);
-          log(`⚡ STUCK: Trying intermediate jump ~150m ahead: ${intermediatePoint.lat}, ${intermediatePoint.lng}`);
+        // Try jumping 25m ahead first (like clicking ahead on the map)
+        if (distToTarget > 25) {
+          const intermediatePoint = getIntermediatePoint(postMovePos.lat, postMovePos.lng, fullTarget.lat, fullTarget.lng, 50);
+          log(`STUCK: Trying intermediate jump ~25m ahead: ${intermediatePoint.lat}, ${intermediatePoint.lng}`);
           const bearing = calculateBearing(postMovePos.lat, postMovePos.lng, fullTarget.lat, fullTarget.lng);
           await page.evaluate(({ lat, lng, heading, preferNewest }) => initPanorama(lat, lng, heading, null, preferNewest),
             { ...intermediatePoint, heading: bearing, preferNewest: PREFER_NEWEST });
@@ -467,7 +467,7 @@ async function run() {
           stuckCount = 0; // Reset and try to continue from here
         } else {
           // Target is close, jump directly to it
-          log(`🚀 STUCK: Teleporting to next route point: ${fullTarget.lat}, ${fullTarget.lng}`);
+          log(`STUCK: Teleporting to next route point: ${fullTarget.lat}, ${fullTarget.lng}`);
           const bearing = calculateBearing(postMovePos.lat, postMovePos.lng, fullTarget.lat, fullTarget.lng);
           await page.evaluate(({ lat, lng, heading, preferNewest }) => initPanorama(lat, lng, heading, null, preferNewest),
             { ...fullTarget, heading: bearing, preferNewest: PREFER_NEWEST });
@@ -484,10 +484,10 @@ async function run() {
         const fullTarget = route[routeIndex];
         const distToTarget = calculateDistance(currentPos.lat, currentPos.lng, fullTarget.lat, fullTarget.lng);
 
-        // Try jumping 150m ahead first (like clicking ahead on the map)
-        if (distToTarget > 150) {
-          const intermediatePoint = getIntermediatePoint(currentPos.lat, currentPos.lng, fullTarget.lat, fullTarget.lng, 150);
-          log(`⚡ STUCK: Trying intermediate jump ~150m ahead: ${intermediatePoint.lat}, ${intermediatePoint.lng}`);
+        // Try jumping 25m ahead first (like clicking ahead on the map)
+        if (distToTarget > 25) {
+          const intermediatePoint = getIntermediatePoint(currentPos.lat, currentPos.lng, fullTarget.lat, fullTarget.lng, 50);
+          log(`STUCK: Trying intermediate jump ~25m ahead: ${intermediatePoint.lat}, ${intermediatePoint.lng}`);
           const bearing = calculateBearing(currentPos.lat, currentPos.lng, fullTarget.lat, fullTarget.lng);
           await page.evaluate(({ lat, lng, heading, preferNewest }) => initPanorama(lat, lng, heading, null, preferNewest),
             { ...intermediatePoint, heading: bearing, preferNewest: PREFER_NEWEST });
@@ -496,7 +496,7 @@ async function run() {
           // Don't increment routeIndex - keep trying for same target
         } else {
           // Target is close, jump directly to it
-          log(`🚀 STUCK: Teleporting to next route point: ${fullTarget.lat}, ${fullTarget.lng}`);
+          log(`STUCK: Teleporting to next route point: ${fullTarget.lat}, ${fullTarget.lng}`);
           const bearing = calculateBearing(currentPos.lat, currentPos.lng, fullTarget.lat, fullTarget.lng);
           await page.evaluate(({ lat, lng, heading, preferNewest }) => initPanorama(lat, lng, heading, null, preferNewest),
             { ...fullTarget, heading: bearing, preferNewest: PREFER_NEWEST });
