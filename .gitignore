@@ -20,3 +20,6 @@ route.json
 # Gemini/OpenSpec
 .gemini/
 openspec/
+agents.md
+GEMINI.md
+CLAUDE.md

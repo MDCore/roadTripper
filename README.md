@@ -1,14 +1,12 @@
 # RoadTripper Rebuilt
 
-A modern reconstruction of the original RoadTripper, now powered by Playwright and a route-aware navigation engine.
+A modern reconstruction of the original RoadTripper with a route-aware navigation engine.
 
 ## Prerequisites
-
 - Node.js (v18+)
 - A Google Maps API Key (with Directions API and Maps JavaScript API enabled)
 
 ## Setup
-
 1. Clone the repository.
 2. Install dependencies:
     ```bash
@@ -58,5 +56,4 @@ node navigator/index.js <project-name>
 ```
 Example: `node navigator/index.js N2`
 
-The script will follow the route Pano-by-Pano and save screenshots to `projects/<project-name>/images/`.
-
+The script will follow the route and save screenshots to `projects/<project-name>/images/`.
