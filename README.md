@@ -57,3 +57,10 @@ node navigator/index.js <project-name>
 Example: `node navigator/index.js N2`
 
 The script will follow the route and save screenshots to `projects/<project-name>/images/`.
+
+
+### Tests
+Run tests with
+```bash
+node --test navigator/lib.test.js
+```

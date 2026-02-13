@@ -1,134 +1,15 @@
-// Expect a project name
-const PROJECT_NAME = process.argv[2];
-if (!PROJECT_NAME) {
-  console.error("Please provide a project name: node navigator/index.js  <project-name>");
-  process.exit(1);
-}
+import { chromium } from 'playwright';
+import fs from 'fs';
+import path from 'path';
+import dotenv from 'dotenv'; dotenv.config();
+import signale from 'signale'; const { Signale } = signale;
+import { calculateBearing, calculateDistance, getBestLink, loadState, saveState } from './lib.js';
+import { fileURLToPath } from 'url';
 
-const { chromium } = require('playwright');
-const fs = require('fs');
-const path = require('path');
-require('dotenv').config();
+// Global variables (initialized in main or used by helpers)
+let log = new Signale({ disabled: true }); // Default to silent for tests
+let PROJECT_DIR, IMAGES_DIR, ROUTE_FILE, STATE_FILE, WIDTH, HEIGHT, STEP_DELAY, MIN_IMAGE_YEAR, MAX_IMAGE_AGE_MONTHS;
 
-// Expect an API key
-const API_KEY = process.env.GOOGLE_MAPS_API_KEY;
-if (!API_KEY) {
-  throw new Error('GOOGLE_MAPS_API_KEY not found in .env file!');
-}
-
-const PROJECT_DIR = path.resolve(__dirname, '../projects', PROJECT_NAME);
-const IMAGES_DIR = path.join(PROJECT_DIR, 'images');
-const ROUTE_FILE = path.join(PROJECT_DIR, 'route.json');
-const STATE_FILE = path.join(PROJECT_DIR, 'navigator_state.json');
-
-// Set up logging to stdout and the logfile
-const { Signale } = require('signale');
-const logFile = fs.createWriteStream(path.join(PROJECT_DIR, 'navigator.log'), { flags: 'a' });
-const log = new Signale({
-  stream: [process.stdout, logFile]
-});
-// Catch-all for Sync errors
-process.on('uncaughtException', (err) => {
-  log.fatal('Uncaught Exception:', err);
-  process.exit(1);
-});
-// Catch-all for Async errors
-process.on('unhandledRejection', (reason) => {
-  log.fatal('Unhandled Rejection:', reason);
-  process.exit(1);
-});
-
-// Expect a route file
-if (!fs.existsSync(ROUTE_FILE)) {
-  log.fatal(`route.json not found in project ${PROJECT_DIR}! Please export a route and place it there.`);
-  process.exit(1);
-}
-const route = JSON.parse(fs.readFileSync(ROUTE_FILE, 'utf-8'));
-log.info(`Loaded route with ${route.length} waypoints`);
-
-// Ensure project and images directory exists
-if (!fs.existsSync(IMAGES_DIR)) {
-  log.info(`Creating images directory: ${IMAGES_DIR}`);
-  fs.mkdirSync(IMAGES_DIR, { recursive: true });
-}
-
-// Various defaults
-const STEP_DELAY = parseInt(process.env.NAVIGATOR_STEP_DELAY || '5000', 10);
-const WIDTH = parseInt(process.env.NAVIGATOR_WIDTH || '1920', 10);
-const HEIGHT = parseInt(process.env.NAVIGATOR_HEIGHT || '1080', 10);
-const MIN_IMAGE_YEAR = parseInt(process.env.NAVIGATOR_MIN_IMAGE_YEAR || '0', 10); // Filter out imagery older than this year
-const PREFER_NEWEST = process.env.NAVIGATOR_PREFER_NEWEST === 'true'; // Use position-based lookup to get newest imagery
-const MAX_IMAGE_AGE_MONTHS = parseInt(process.env.NAVIGATOR_MAX_IMAGE_AGE_MONTHS || '0', 10); // Check for newer imagery if current is older than N months (0 = disabled)
-
-function loadState() {
-  if (fs.existsSync(STATE_FILE)) {
-    try {
-      return JSON.parse(fs.readFileSync(STATE_FILE, 'utf-8'));
-    } catch (e) {
-      console.warn('Warning: Could not parse state file. Starting from scratch.');
-    }
-  }
-  return { "lastStep": 1 }
-}
-
-function saveState(index, currentPos) {
-  if (!fs.existsSync(PROJECT_DIR)) {
-    fs.mkdirSync(PROJECT_DIR, { recursive: true });
-  }
-  const logState = JSON.stringify({
-    lastStep: index,
-    lastPano: currentPos.pano,
-    lastLat: currentPos.lat,
-    lastLng: currentPos.lng
-  });
-  log.info(`Saving state ${logState}`);
-  fs.writeFileSync(STATE_FILE, JSON.stringify({
-    lastStep: index,
-    lastPano: currentPos.pano,
-    lastLat: currentPos.lat,
-    lastLng: currentPos.lng
-  }, null, 2));
-}
-
-function calculateBearing(lat1, lon1, lat2, lon2) {
-  const y = Math.sin((lon2 - lon1) * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180);
-  const x = Math.cos(lat1 * Math.PI / 180) * Math.sin(lat2 * Math.PI / 180) -
-    Math.sin(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.cos((lon2 - lon1) * Math.PI / 180);
-  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
-}
-
-function calculateDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371e3; // metres
-  const phi1 = lat1 * Math.PI / 180;
-  const phi2 = lat2 * Math.PI / 180;
-  const dPhi = (lat2 - lat1) * Math.PI / 180;
-  const dLambda = (lon2 - lon1) * Math.PI / 180;
-
-  const a = Math.sin(dPhi / 2) * Math.sin(dPhi / 2) +
-    Math.cos(phi1) * Math.cos(phi2) *
-    Math.sin(dLambda / 2) * Math.sin(dLambda / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  return R * c;
-}
-
-function getBestLink(links, targetBearing) {
-  if (!links || links.length === 0) return null;
-  let closestLink = null;
-  let minDiff = 360;
-
-  for (const link of links) {
-    let diff = Math.abs(link.heading - targetBearing);
-    if (diff > 180) diff = 360 - diff;
-
-    // Threshold: Don't pick a link that is more than 90 degrees away from our target
-    if (diff < minDiff && diff < 90) {
-      minDiff = diff;
-      closestLink = link;
-    }
-  }
-  return closestLink;
-}
 
 async function captureScreenshot(page, position) {
   // Log image date/age if available
@@ -152,18 +33,9 @@ async function captureScreenshot(page, position) {
   log.info(`📷 Captured: ${path.basename(filename)}${ageStr}`);
 }
 
-async function run() {
+// ------------------------------------------
 
-  // Persistence logic
-  const state = loadState();
-  startStep = state.lastStep;
-  log.info(`Starting from step ${startStep}`);
-  log.info(state);
-  if (startStep >= route.length) {
-    log.info('Already completed the route.');
-    process.exit(0);
-  }
-
+async function setupPage() {
   const browser = await chromium.launch({ headless: false });
   const page = await browser.newPage({
     viewport: { width: WIDTH, height: HEIGHT }
@@ -179,7 +51,7 @@ async function run() {
 
   // Serve viewport.html over http://localhost to avoid file:// referer issues
   await page.route('http://localhost:3000/', route => {
-    const html = fs.readFileSync(path.resolve(__dirname, 'viewport.html'), 'utf-8');
+    const html = fs.readFileSync('./navigator/viewport.html', 'utf-8');
     route.fulfill({
       contentType: 'text/html',
       body: html
@@ -188,6 +60,7 @@ async function run() {
 
   await page.goto('http://localhost:3000/');
 
+  const API_KEY = process.env.GOOGLE_MAPS_API_KEY;
   // Inject Google Maps API
   await page.addScriptTag({
     url: `https://maps.googleapis.com/maps/api/js?key=${API_KEY}`
@@ -197,24 +70,24 @@ async function run() {
   await page.waitForFunction(() => window.google && window.google.maps);
   log.info('Google Maps API loaded');
 
-  // Initialize Panorama at start of route
-  let startPoint = route[startStep - 1];
-  let lastPano = null;
+  return page;
+}
 
-  if (state && state.lastStep === startStep) {
-    log.info(`Using precise state from last run for point ${startStep}`);
-    if (state.lastLat && state.lastLng) {
-      startPoint = { lat: state.lastLat, lng: state.lastLng };
-    }
-    lastPano = state.lastPano;
+async function run(route, state) {
+  const page = await setupPage();
+
+  log.info(`Starting from step ${state.lastStep}`);
+  let startPoint = route[state.lastStep];
+  let lastPano = state.lastPano;
+
+  if (state.lastLat && state.lastLng) {
+    startPoint = { lat: state.lastLat, lng: state.lastLng };
   }
 
-  const nextPoint = route[startStep];
-  log.info(`Initializing at point ${startStep - 1}: ${startPoint.lat}, ${startPoint.lng} (Pano: ${lastPano || 'default'})`);
-  log.info(`Targeting point ${startStep}: ${nextPoint.lat}, ${nextPoint.lng}`);
-  if (PREFER_NEWEST) {
-    log.info('Preferring newest imagery (using OUTDOOR source)');
-  }
+  const nextPoint = route[state.lastStep + 1];
+  log.info(`Initializing at point ${state.lastStep}: ${startPoint.lat}, ${startPoint.lng} (Pano: ${lastPano || 'default'})`);
+  log.info(`Targeting point ${state.lastStep + 1}: ${nextPoint.lat}, ${nextPoint.lng}`);
+
   if (MIN_IMAGE_YEAR > 0) {
     log.info(`Filtering imagery older than ${MIN_IMAGE_YEAR}`);
   }
@@ -223,8 +96,8 @@ async function run() {
   }
 
   const initialBearing = nextPoint ? calculateBearing(startPoint.lat, startPoint.lng, nextPoint.lat, nextPoint.lng) : 0;
-  await page.evaluate(({ lat, lng, heading, panoId, preferNewest }) => initPanorama(lat, lng, heading, panoId, preferNewest),
-    { ...startPoint, heading: initialBearing, panoId: lastPano, preferNewest: PREFER_NEWEST });
+  await page.evaluate(({ lat, lng, heading, panoId }) => initPanorama(lat, lng, heading, panoId),
+    { ...startPoint, heading: initialBearing, panoId: lastPano });
 
   // Wait for panorama and connectivity to be ready
   await page.waitForFunction(() =>
@@ -234,17 +107,16 @@ async function run() {
     panorama.getLinks().length > 0
   );
 
-  log.info(`Starting navigation - ${route.length - startStep} steps remaining`);
+  log.info(`Starting navigation - ${route.length - state.lastStep} steps remaining`);
 
   // Capture screenshot of starting position
   const startPos = await page.evaluate(() => getPositionWithMetadata());
   if (startPos) {
     await captureScreenshot(page, startPos);
-    //saveState(routeIndex, startPos);
   }
 
   // Navigation Loop
-  let routeIndex = startStep;
+  let routeIndex = state.lastStep;
   let panoHistory = [];
   let stuckCount = 0; // Track how many times we've skipped without moving
   let lastImageDate = null; // Track image date to detect backwards jumps
@@ -321,7 +193,7 @@ async function run() {
       }
 
       // Detect backwards time jump and attempt recovery
-      if (PREFER_NEWEST && postMovePos.imageDate && lastImageDate) {
+      if (postMovePos.imageDate && lastImageDate) {
         const currentDate = new Date(postMovePos.imageDate);
         const previousDate = new Date(lastImageDate);
 
@@ -335,8 +207,8 @@ async function run() {
 
           // Reinitialize at current position to let Google find newest imagery
           const bearing = calculateBearing(postMovePos.lat, postMovePos.lng, route[routeIndex].lat, route[routeIndex].lng);
-          await page.evaluate(({ lat, lng, heading, preferNewest }) => initPanorama(lat, lng, heading, null, preferNewest),
-            { lat: postMovePos.lat, lng: postMovePos.lng, heading: bearing, preferNewest: true });
+          await page.evaluate(({ lat, lng, heading }) => initPanorama(lat, lng, heading, null),
+            { lat: postMovePos.lat, lng: postMovePos.lng, heading: bearing });
           await page.waitForTimeout(STEP_DELAY);
 
           // Check if we found newer imagery
@@ -358,7 +230,7 @@ async function run() {
 
       // Check if imagery is too old based on absolute age (not just relative jumps)
       stepsSinceAgeCheck++;
-      if (PREFER_NEWEST && MAX_IMAGE_AGE_MONTHS > 0 && postMovePos.imageDate && stepsSinceAgeCheck >= 3) {
+      if (MAX_IMAGE_AGE_MONTHS > 0 && postMovePos.imageDate && stepsSinceAgeCheck >= 3) {
         const now = new Date();
         const imageDate = new Date(postMovePos.imageDate);
         const monthsDiff = (now.getFullYear() - imageDate.getFullYear()) * 12 + (now.getMonth() - imageDate.getMonth());
@@ -370,8 +242,8 @@ async function run() {
 
           // Reinitialize at current position to let Google find newest imagery
           const bearing = calculateBearing(postMovePos.lat, postMovePos.lng, route[routeIndex].lat, route[routeIndex].lng);
-          await page.evaluate(({ lat, lng, heading, preferNewest }) => initPanorama(lat, lng, heading, null, preferNewest),
-            { lat: postMovePos.lat, lng: postMovePos.lng, heading: bearing, preferNewest: true });
+          await page.evaluate(({ lat, lng, heading }) => initPanorama(lat, lng, heading, null),
+            { lat: postMovePos.lat, lng: postMovePos.lng, heading: bearing });
           await page.waitForTimeout(STEP_DELAY);
 
           // Check if we found newer imagery
@@ -400,7 +272,7 @@ async function run() {
       }
 
       await captureScreenshot(page, postMovePos);
-      saveState(routeIndex, postMovePos);
+      saveState(fs, STATE_FILE, routeIndex, postMovePos);
 
       // Check if imagery is too old
       if (MIN_IMAGE_YEAR > 0 && postMovePos.imageDate) {
@@ -431,4 +303,71 @@ async function run() {
   // end logstream
 }
 
-run();
+async function main() {
+  const PROJECT_NAME = process.argv[2];
+  if (!PROJECT_NAME) {
+    console.error("Please provide a project name: node navigator/index.js  <project-name>");
+    process.exit(1);
+  }
+
+  const API_KEY = process.env.GOOGLE_MAPS_API_KEY;
+  if (!API_KEY) {
+    throw new Error('GOOGLE_MAPS_API_KEY not found in .env file!');
+  }
+
+  PROJECT_DIR = fileURLToPath(new URL(`../projects/${PROJECT_NAME}/`, import.meta.url));
+
+  if (!fs.existsSync(PROJECT_DIR)) {
+    fs.mkdirSync(PROJECT_DIR, { recursive: true });
+  }
+
+  IMAGES_DIR = path.join(PROJECT_DIR, 'images');
+  ROUTE_FILE = path.join(PROJECT_DIR, 'route.json');
+  STATE_FILE = path.join(PROJECT_DIR, 'navigator_state.json');
+
+  const logFile = fs.createWriteStream(path.join(PROJECT_DIR, 'navigator.log'), { flags: 'a' });
+  log = new Signale({
+    stream: [process.stdout, logFile]
+  });
+
+  // Catch-all for Sync errors
+  process.on('uncaughtException', (err) => {
+    log.fatal('Uncaught Exception:', err);
+    process.exit(1);
+  });
+  // Catch-all for Async errors
+  process.on('unhandledRejection', (reason) => {
+    log.fatal('Unhandled Rejection:', reason);
+    process.exit(1);
+  });
+
+  if (!fs.existsSync(ROUTE_FILE)) {
+    log.fatal(`route.json not found in project ${PROJECT_DIR}! Please export a route and place it there.`);
+    process.exit(1);
+  }
+  const route = JSON.parse(fs.readFileSync(ROUTE_FILE, 'utf-8'));
+  log.info(`Loaded route with ${route.length} waypoints`);
+
+  if (!fs.existsSync(IMAGES_DIR)) {
+    log.info(`Creating images directory: ${IMAGES_DIR}`);
+    fs.mkdirSync(IMAGES_DIR, { recursive: true });
+  }
+
+  STEP_DELAY = parseInt(process.env.NAVIGATOR_STEP_DELAY || '5000', 10);
+  WIDTH = parseInt(process.env.NAVIGATOR_WIDTH || '1920', 10);
+  HEIGHT = parseInt(process.env.NAVIGATOR_HEIGHT || '1080', 10);
+  MIN_IMAGE_YEAR = parseInt(process.env.NAVIGATOR_MIN_IMAGE_YEAR || '0', 10);
+  MAX_IMAGE_AGE_MONTHS = parseInt(process.env.NAVIGATOR_MAX_IMAGE_AGE_MONTHS || '0', 10);
+
+  const state = loadState(fs, STATE_FILE);
+  if (state.lastStep >= route.length) {
+    log.info('Already completed the route.');
+    process.exit(0);
+  }
+
+  await run(route, state);
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main();
+}

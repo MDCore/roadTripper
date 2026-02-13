@@ -20,7 +20,7 @@
     let panorama;
     let streetViewService;
 
-    function initPanorama(lat, lng, heading, panoId, preferNewest) {
+    function initPanorama(lat, lng, heading, panoId) {
       // Initialize Street View Service if not already done
       if (!streetViewService) {
         streetViewService = new google.maps.StreetViewService();
@@ -43,10 +43,7 @@
         imageDateControl: false
       };
 
-      // Prefer outdoor (official Google) imagery over user-contributed content
-      if (preferNewest) {
-        options.source = google.maps.StreetViewSource.OUTDOOR;
-      }
+      options.source = google.maps.StreetViewSource.GOOGLE;
 
       if (panoId) {
         // Always prioritize the specific pano ID if provided (for resuming state)
