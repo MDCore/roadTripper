@@ -1,6 +1,6 @@
-const assert = require('node:assert');
-const { test, describe } = require('node:test');
-const { calculateBearing, calculateDistance, getBestLink } = require('./lib.js');
+import assert from 'node:assert';
+import { test, describe } from 'node:test';
+import { calculateBearing, calculateDistance, getBestLink } from './lib.js';
 
 describe('Navigator Math', () => {
   test('calculateDistance should be accurate for known points', () => {
