@@ -88,16 +88,10 @@ async function run(route, state) {
   log.info(`Initializing at point ${state.lastStep}: ${startPoint.lat}, ${startPoint.lng} (Pano: ${lastPano || 'default'})`);
   log.info(`Targeting point ${state.lastStep + 1}: ${nextPoint.lat}, ${nextPoint.lng}`);
 
-  if (MIN_IMAGE_YEAR > 0) {
-    log.info(`Filtering imagery older than ${MIN_IMAGE_YEAR}`);
-  }
-  if (MAX_IMAGE_AGE_MONTHS > 0) {
-    log.info(`Will check for newer imagery if current is older than ${MAX_IMAGE_AGE_MONTHS} months`);
-  }
-
-  const initialBearing = nextPoint ? calculateBearing(startPoint.lat, startPoint.lng, nextPoint.lat, nextPoint.lng) : 0;
+  // Load the starting panorama
+  const startBearing = nextPoint ? calculateBearing(startPoint.lat, startPoint.lng, nextPoint.lat, nextPoint.lng) : 0;
   await page.evaluate(({ lat, lng, heading, panoId }) => initPanorama(lat, lng, heading, panoId),
-    { ...startPoint, heading: initialBearing, panoId: lastPano });
+    { ...startPoint, heading: startBearing, panoId: lastPano });
 
   // Wait for panorama and connectivity to be ready
   await page.waitForFunction(() =>
@@ -109,7 +103,7 @@ async function run(route, state) {
 
   log.info(`Starting navigation - ${route.length - state.lastStep} steps remaining`);
 
-  // Capture screenshot of starting position
+  // Capture screenshot of starting panorama
   const startPos = await page.evaluate(() => getPositionWithMetadata());
   if (startPos) {
     await captureScreenshot(page, startPos);
@@ -137,7 +131,8 @@ async function run(route, state) {
       }
 
       if (panoHistory.includes(currentPos.pano)) {
-        log.warn(`LOOP DETECTION: Have been to pano ${currentPos.pano} before!`);
+        log.fatal(`LOOP DETECTED: Have been to pano ${currentPos.pano} before!`);
+        process.exit(1);
       }
       panoHistory.push(currentPos.pano);
       if (panoHistory.length > 10) panoHistory.shift();
@@ -358,6 +353,15 @@ async function main() {
   HEIGHT = parseInt(process.env.NAVIGATOR_HEIGHT || '1080', 10);
   MIN_IMAGE_YEAR = parseInt(process.env.NAVIGATOR_MIN_IMAGE_YEAR || '0', 10);
   MAX_IMAGE_AGE_MONTHS = parseInt(process.env.NAVIGATOR_MAX_IMAGE_AGE_MONTHS || '0', 10);
+
+  if (MIN_IMAGE_YEAR > 0) {
+    log.info(`env setting: Filtering imagery older than ${MIN_IMAGE_YEAR}`);
+  }
+  if (MAX_IMAGE_AGE_MONTHS > 0) {
+    log.info(`env setting: Will check for newer imagery if, after moving, the current is older than ${MAX_IMAGE_AGE_MONTHS} months`);
+  }
+
+
 
   const state = loadState(fs, STATE_FILE);
   if (state.lastStep >= route.length) {
