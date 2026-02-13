@@ -299,7 +299,7 @@ async function run(route, state) {
     }
   }
 
-  log.info.log('✓ Navigation complete!');
+  log.info('✓ Navigation complete!');
   // end logstream
 }
 

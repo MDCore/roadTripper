@@ -5,7 +5,8 @@
   "description": "Navigate across Street View links and takes date stamped screenshots for making time-lapses",
   "main": "roadTripper.js",
   "scripts": {
-    "test": "node --test navigator/lib.test.js"
+    "test": "node --test navigator/lib.test.js",
+    "lint": "eslint ."
   },
   "repository": {
     "type": "git",
@@ -13,7 +14,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "GPL",
   "bugs": {
     "url": "https://github.com/MDCore/roadTripper/issues"
   },
@@ -22,5 +23,10 @@
     "dotenv": "^17.2.3",
     "playwright": "^1.58.1",
     "signale": "^1.4.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "eslint": "^9.39.2",
+    "globals": "^17.3.0"
   }
 }

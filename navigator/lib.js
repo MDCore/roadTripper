@@ -42,7 +42,7 @@ export function loadState(fs, STATE_FILE) {
   if (fs.existsSync(STATE_FILE)) {
     try {
       return JSON.parse(fs.readFileSync(STATE_FILE, 'utf-8'));
-    } catch (e) {
+    } catch {
       console.warn('Warning: Could not parse state file. Starting from scratch.');
     }
   }
