@@ -77,132 +77,196 @@ async function waitForStablePanorama(page) {
   await page.waitForFunction(() => {
     return getPosition() && getLinks() && getLinks().length > 0;
   }, null, { timeout: 15000 });
-
   return {
     currentPos: await page.evaluate(() => getPosition()),
     links: await page.evaluate(() => getLinks())
   };
 }
 
-async function run(route, state) {
-  const page = await setupPage();
+async function checkPanoQuality(page, currentPos, lastImageDate, stepsSinceAgeCheck) {
+  // x. Fixups: Check for time jumps or old imagery
+  // Detect backwards time jump and attempt recovery
+  if (currentPos.imageDate && lastImageDate) {
+    const currentDate = new Date(currentPos.imageDate);
+    const previousDate = new Date(lastImageDate);
 
-  log.info(`Starting from step ${state.lastStep}`);
-  let startPoint = route[state.lastStep];
-  let lastPano = state.lastPano;
+    // If we've jumped backwards by more than 30 days, try to recover
+    const daysDiff = (currentDate - previousDate) / (1000 * 60 * 60 * 24);
+    if (daysDiff < -30) {
+      const currentYearMonth = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+      const previousYearMonth = `${previousDate.getFullYear()}-${String(previousDate.getMonth() + 1).padStart(2, '0')}`;
+      log.warn(`⏰ Backwards time jump detected: ${previousYearMonth} → ${currentYearMonth} (${Math.abs(daysDiff).toFixed(0)} days)`);
+      log.warn(`🔄 Attempting to recover by searching for newer imagery at this location...`);
 
-  if (state.lastLat && state.lastLng) {
-    startPoint = { lat: state.lastLat, lng: state.lastLng };
+      // Reinitialize at current position to let Google find newest imagery
+      const bearing = calculateBearing(currentPos.lat, currentPos.lng, route[step].lat, route[step].lng);
+      await page.evaluate(({ lat, lng, heading }) => initPanorama(lat, lng, heading, null),
+        { lat: currentPos.lat, lng: currentPos.lng, heading: bearing });
+
+      // Wait for stability again after re-init
+      const stabilityResult = await waitForStablePanorama(page);
+      const recoveredPos = stabilityResult.currentPos;
+
+      if (recoveredPos.imageDate) {
+        const recoveredDate = new Date(recoveredPos.imageDate);
+        const recoveredYearMonth = `${recoveredDate.getFullYear()}-${String(recoveredDate.getMonth() + 1).padStart(2, '0')}`;
+        if (recoveredDate > currentDate) {
+          log.info(`✓ Recovery successful! Found newer imagery: ${recoveredYearMonth}`);
+          stepsSinceAgeCheck = 0; // Reset counter after successful recovery
+        } else {
+          log.warn(`Recovery found same or older imagery: ${recoveredYearMonth}`);
+          // We stick with the recoveredPos anyway as it's the current state
+        }
+        currentPos = recoveredPos;
+        links = stabilityResult.links;
+      }
+    }
   }
 
-  const nextPoint = route[state.lastStep + 1];
-  log.info(`Initializing at point ${state.lastStep}: ${startPoint.lat}, ${startPoint.lng} (Pano: ${lastPano || 'default'})`);
-  log.info(`Targeting point ${state.lastStep + 1}: ${nextPoint.lat}, ${nextPoint.lng}`);
+  // Check if imagery is too old based on absolute age (not just relative jumps)
+  stepsSinceAgeCheck++;
+  if (MAX_IMAGE_AGE_MONTHS > 0 && currentPos.imageDate && stepsSinceAgeCheck >= 3) {
+    const now = new Date();
+    const imageDate = new Date(currentPos.imageDate);
+    const monthsDiff = (now.getFullYear() - imageDate.getFullYear()) * 12 + (now.getMonth() - imageDate.getMonth());
 
-  // Load the starting panorama
-  const startBearing = nextPoint ? calculateBearing(startPoint.lat, startPoint.lng, nextPoint.lat, nextPoint.lng) : 0;
-  await page.evaluate(({ lat, lng, heading, panoId }) => initPanorama(lat, lng, heading, panoId),
-    { ...startPoint, heading: startBearing, panoId: lastPano });
+    if (monthsDiff > MAX_IMAGE_AGE_MONTHS) {
+      const imageYearMonth = `${imageDate.getFullYear()}-${String(imageDate.getMonth() + 1).padStart(2, '0')}`;
+      log.warn(`📅 Old imagery detected: ${imageYearMonth} (${monthsDiff} months old, threshold: ${MAX_IMAGE_AGE_MONTHS})`);
+      log.warn(`🔄 Checking for newer imagery at this location...`);
 
-  log.info(`Starting navigation - ${route.length - state.lastStep} steps remaining`);
+      // Reinitialize at current position to let Google find newest imagery
+      const bearing = calculateBearing(currentPos.lat, currentPos.lng, route[step].lat, route[step].lng);
+      await page.evaluate(({ lat, lng, heading }) => initPanorama(lat, lng, heading, null),
+        { lat: currentPos.lat, lng: currentPos.lng, heading: bearing });
+
+      // Wait for stability again after re-init
+      const stabilityResult = await waitForStablePanorama(page);
+      const recoveredPos = stabilityResult.currentPos;
+
+      if (recoveredPos.imageDate) {
+        const recoveredDate = new Date(recoveredPos.imageDate);
+        const recoveredYearMonth = `${recoveredDate.getFullYear()}-${String(recoveredDate.getMonth() + 1).padStart(2, '0')}`;
+        const recoveredMonthsDiff = (now.getFullYear() - recoveredDate.getFullYear()) * 12 + (now.getMonth() - recoveredDate.getMonth());
+
+        if (recoveredDate > imageDate) {
+          log.info(`✓ Found newer imagery: ${recoveredYearMonth} (${recoveredMonthsDiff} months old)`);
+        } else {
+          log.warn(`No newer imagery available at this location (still ${recoveredYearMonth})`);
+        }
+        currentPos = recoveredPos;
+        links = stabilityResult.links;
+      }
+      stepsSinceAgeCheck = 0; // Reset counter after checking
+    }
+  }
+
+  // Update last image date for next comparison
+  if (currentPos.imageDate) {
+    lastImageDate = currentPos.imageDate;
+  }
+  return currentPos, stepsSinceAgeCheck;
+}
+
+async function run(route) {
 
   // Navigation Loop
-  let routeIndex = state.lastStep;
   let panoHistory = [];
   let stuckCount = 0; // Track how many times we've skipped without moving
   let lastImageDate = null; // Track image date to detect backwards jumps
   let stepsSinceAgeCheck = 0; // Track steps since last age check to avoid checking too frequently
   let lastCapturedPano = null; // To avoid processing the same pano twice (e.g. when just advancing waypoints)
 
-  while (routeIndex < route.length) {
-    // 1. Stabilize: Wait for position and links
-    let { currentPos, links } = await waitForStablePanorama(page);
+  /* Steps:
+  Loop:
 
-    // 2. Fixups: Check for time jumps or old imagery
-    // Detect backwards time jump and attempt recovery
-    if (currentPos.imageDate && lastImageDate) {
-      const currentDate = new Date(currentPos.imageDate);
-      const previousDate = new Date(lastImageDate);
+  */
+  const page = await setupPage();
 
-      // If we've jumped backwards by more than 30 days, try to recover
-      const daysDiff = (currentDate - previousDate) / (1000 * 60 * 60 * 24);
-      if (daysDiff < -30) {
-        const currentYearMonth = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
-        const previousYearMonth = `${previousDate.getFullYear()}-${String(previousDate.getMonth() + 1).padStart(2, '0')}`;
-        log.warn(`⏰ Backwards time jump detected: ${previousYearMonth} → ${currentYearMonth} (${Math.abs(daysDiff).toFixed(0)} days)`);
-        log.warn(`🔄 Attempting to recover by searching for newer imagery at this location...`);
+  let run = true;
+  while (run) { //step < route.length
 
-        // Reinitialize at current position to let Google find newest imagery
-        const bearing = calculateBearing(currentPos.lat, currentPos.lng, route[routeIndex].lat, route[routeIndex].lng);
-        await page.evaluate(({ lat, lng, heading }) => initPanorama(lat, lng, heading, null),
-          { lat: currentPos.lat, lng: currentPos.lng, heading: bearing });
+// 0. load the state ----------------------------------------------------------
+    const state = loadState(fs, STATE_FILE);
+    let step = state.lastStep;
+    let currentPos = state.lastPano ? { pano: state.lastPano, lat: state.lastLat, lng: state.lastLng } : { pano: "default", lat: route[step].lat, lng: route[step].lng };
 
-        // Wait for stability again after re-init
-        const stabilityResult = await waitForStablePanorama(page);
-        const recoveredPos = stabilityResult.currentPos;
-        links = stabilityResult.links;
+    log.info(`Navigating from point ${step}: ${route[step].lat}, ${route[step].lng} - ${route.length - step} steps remaining`);
+    log.info(`Current Position: pano: ${currentPos.pano}) lat: ${currentPos.lat}, lng: ${currentPos.lng}`);
 
-        if (recoveredPos.imageDate) {
-          const recoveredDate = new Date(recoveredPos.imageDate);
-          const recoveredYearMonth = `${recoveredDate.getFullYear()}-${String(recoveredDate.getMonth() + 1).padStart(2, '0')}`;
-          if (recoveredDate > currentDate) {
-            log.info(`✓ Recovery successful! Found newer imagery: ${recoveredYearMonth}`);
-            currentPos = recoveredPos;
-            stepsSinceAgeCheck = 0; // Reset counter after successful recovery
-          } else {
-            log.warn(`Recovery found same or older imagery: ${recoveredYearMonth}`);
-            // We stick with the recoveredPos anyway as it's the current state
-            currentPos = recoveredPos;
-          }
-        }
+// 1. Get bearing from current to next point ----------------------------------
+    const nextPoint = route[step + 1];
+    log.info(`Targeting point ${step + 1}: ${nextPoint.lat}, ${nextPoint.lng}`);
+    // ZZZ bearing will be 0 on last point - maybe keep previous bearing? state.lastBearing?
+    const bearing = nextPoint ? calculateBearing(route[step].lat, route[step].lng, nextPoint.lat, nextPoint.lng) : 0;
+
+// 2. Init the panorama with the current point + bearing ----------------------
+    await page.evaluate(({ lat, lng, heading, panoId }) => initPanorama(lat, lng, heading, panoId),
+      { lat: state.lastLat, lng: state.lastLng, heading: bearing, panoId: state.lastPano });
+
+// 3. Make sure the pano is stable (stable position, pano and links are loaded)
+    let links = null;
+   ({ currentPos, links } = await waitForStablePanorama(page));
+
+// 4. Take a screenshot -------------------------------------------------------
+    if (state.lastPano) {
+      // Capture  a screenshot if the state has a panoId
+      await captureScreenshot(page, currentPos);
+    }
+
+// 5. Move towards the next point --------------------------------------------
+    // 5.1 Reach the next point
+    let processedWaypoint = false;
+    while (step < route.length) { //ZZZ why is this while? what does this code block _do_?
+      const distToNextStep = calculateDistance(currentPos.lat, currentPos.lng, nextPoint.lat, nextPoint.lng);
+      log.info(`Target ${step}/${route.length} - Dist: ${distToNextStep.toFixed(1)}m`);
+
+      if (distToNextStep < 25) { // Threshold for reaching a route point
+        log.info(`✓ Reached target point ${step}`);
+        step++;
+        saveState(fs, STATE_FILE, step, currentPos); // save current position but starting at the next step
+
+        processedWaypoint = true;
+      } else {
+        break; // Not close enough to this target, proceed to move
       }
     }
+    if (step >= route.length) {
+      log.info('Route complete.');
+      process.exit(0);
+    }
+    //ZZZ this line is now at the wrong point...
+    if (processedWaypoint) continue; // Re-evaluate with new target without moving
 
-    // Check if imagery is too old based on absolute age (not just relative jumps)
-    stepsSinceAgeCheck++;
-    if (MAX_IMAGE_AGE_MONTHS > 0 && currentPos.imageDate && stepsSinceAgeCheck >= 3) {
-      const now = new Date();
-      const imageDate = new Date(currentPos.imageDate);
-      const monthsDiff = (now.getFullYear() - imageDate.getFullYear()) * 12 + (now.getMonth() - imageDate.getMonth());
+    // x. Move: Calculate and Execute
+    log.info(`Found ${links ? links.length : 0} available links`);
+    const bestLink = getBestLink(links, bearing);
 
-      if (monthsDiff > MAX_IMAGE_AGE_MONTHS) {
-        const imageYearMonth = `${imageDate.getFullYear()}-${String(imageDate.getMonth() + 1).padStart(2, '0')}`;
-        log.warn(`📅 Old imagery detected: ${imageYearMonth} (${monthsDiff} months old, threshold: ${MAX_IMAGE_AGE_MONTHS})`);
-        log.warn(`🔄 Checking for newer imagery at this location...`);
+    if (bestLink) {
+      log.info(`→ Moving to pano: ${bestLink.pano} (Heading: ${bestLink.heading.toFixed(1)}°, Target: ${bearing.toFixed(1)}°)`);
 
-        // Reinitialize at current position to let Google find newest imagery
-        const bearing = calculateBearing(currentPos.lat, currentPos.lng, route[routeIndex].lat, route[routeIndex].lng);
-        await page.evaluate(({ lat, lng, heading }) => initPanorama(lat, lng, heading, null),
-          { lat: currentPos.lat, lng: currentPos.lng, heading: bearing });
+      await page.evaluate(({ panoId, heading }) => moveToPano(panoId, heading), {
+        panoId: bestLink.pano,
+        heading: bestLink.heading
+      });
 
-        // Wait for stability again after re-init
-        const stabilityResult = await waitForStablePanorama(page);
-        const recoveredPos = stabilityResult.currentPos;
-        links = stabilityResult.links;
-
-        if (recoveredPos.imageDate) {
-          const recoveredDate = new Date(recoveredPos.imageDate);
-          const recoveredYearMonth = `${recoveredDate.getFullYear()}-${String(recoveredDate.getMonth() + 1).padStart(2, '0')}`;
-          const recoveredMonthsDiff = (now.getFullYear() - recoveredDate.getFullYear()) * 12 + (now.getMonth() - recoveredDate.getMonth());
-
-          if (recoveredDate > imageDate) {
-            log.info(`✓ Found newer imagery: ${recoveredYearMonth} (${recoveredMonthsDiff} months old)`);
-            currentPos = recoveredPos;
-          } else {
-            log.warn(`No newer imagery available at this location (still ${recoveredYearMonth})`);
-            currentPos = recoveredPos;
-          }
-        }
-        stepsSinceAgeCheck = 0; // Reset counter after checking
-      }
+      // Wait for network to be idle (tiles loaded)
+      await page.waitForLoadState('networkidle');
+      // Additional safety wait
+      await page.waitForTimeout(STEP_DELAY);
+    } else {
+      log.fatal(`NO BEST LINK`); //ZZZ better error message
+      process.exit(1);
     }
 
-    // Update last image date for next comparison
-    if (currentPos.imageDate) {
-      lastImageDate = currentPos.imageDate;
-    }
+// 6. Check that the newly moved to point is good (e.g. check age, repetition etc) --
+    currentPos, stepsSinceAgeCheck = checkPanoQuality(page, currentPos, lastImageDate, stepsSinceAgeCheck);
+    lastImageDate = currentPos.lastImageDate;
 
-    // 3. Process State (Screenshot, Save, History)
+// 7. Save the state ------------------------------------------------------
+    saveState(fs, STATE_FILE, step, currentPos); // save current position but starting at the next step
+
+//------------
     // Only if we haven't processed this pano already (e.g. if we just advanced a waypoint)
     if (currentPos.pano !== lastCapturedPano) {
        // Loop Detection
@@ -228,69 +292,10 @@ async function run(route, state) {
         }
       }
 
-      await captureScreenshot(page, currentPos);
-      saveState(fs, STATE_FILE, routeIndex, currentPos);
+      saveState(fs, STATE_FILE, step, currentPos);
       lastCapturedPano = currentPos.pano;
     }
-
-    // 4. Logic: Check distance to target(s)
-    let processedWaypoint = false;
-    while (routeIndex < route.length) {
-      const target = route[routeIndex];
-      const distToTarget = calculateDistance(currentPos.lat, currentPos.lng, target.lat, target.lng);
-      log.info(`Target ${routeIndex}/${route.length} - Dist: ${distToTarget.toFixed(1)}m`);
-
-      if (distToTarget < 25) { // Threshold for reaching a route point
-        log.info(`✓ Reached target point ${routeIndex}`);
-        routeIndex++;
-        stuckCount = 0; // Reset stuck count when we advance target via proximity
-        processedWaypoint = true;
-      } else {
-        break; // Not close enough to this target, proceed to move
-      }
-    }
-
-    if (routeIndex >= route.length) break;
-    if (processedWaypoint) continue; // Re-evaluate with new target without moving
-
-    // 5. Move: Calculate and Execute
-    const target = route[routeIndex];
-    const targetBearing = calculateBearing(currentPos.lat, currentPos.lng, target.lat, target.lng);
-    log.info(`Found ${links ? links.length : 0} available links`);
-    const bestLink = getBestLink(links, targetBearing);
-
-    if (bestLink) {
-      stuckCount = 0; // Reset stuck count because we found a valid movement
-      log.info(`→ Moving to pano: ${bestLink.pano} (Heading: ${bestLink.heading.toFixed(1)}°, Target: ${targetBearing.toFixed(1)}°)`);
-
-      await page.evaluate(({ panoId, heading }) => moveToPano(panoId, heading), {
-        panoId: bestLink.pano,
-        heading: bestLink.heading
-      });
-
-      // Wait for network to be idle (tiles loaded)
-      await page.waitForLoadState('networkidle');
-      // Additional safety wait
-      await page.waitForTimeout(STEP_DELAY);
-
-      // Note: We do NOT check "postMovePos" here anymore.
-      // The next iteration will handle the new position validation.
-
-    } else {
-      stuckCount++;
-      log.warn(`No suitable links found towards target ${routeIndex}. (Stuck count: ${stuckCount})`);
-
-      if (stuckCount >= 2) {
-        throw new Error("Stuck! Exiting...");
-      } else {
-        // Try skipping the waypoint
-        routeIndex++;
-      }
-    }
   }
-
-  log.info('✓ Navigation complete!');
-  // end logstream
 }
 
 async function main() {
@@ -356,15 +361,7 @@ async function main() {
     log.info(`env setting: Will check for newer imagery if, after moving, the current is older than ${MAX_IMAGE_AGE_MONTHS} months`);
   }
 
-
-
-  const state = loadState(fs, STATE_FILE);
-  if (state.lastStep >= route.length) {
-    log.info('Already completed the route.');
-    process.exit(0);
-  }
-
-  await run(route, state);
+  await run(route);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
