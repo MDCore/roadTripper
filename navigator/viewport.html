@@ -45,7 +45,6 @@
 
       options.source = google.maps.StreetViewSource.GOOGLE;
 
-
       if (pano) {
         // Always prioritize the specific pano ID if provided (for resuming state)
         options.pano = pano;
@@ -81,10 +80,8 @@
     }
 
     function getPosition() {
-      console.log('getting position');
       const pos = panorama.getPosition();
       if (!pos) {
-        console.log('no position');
         return null;
       }
       let imageDate = null;

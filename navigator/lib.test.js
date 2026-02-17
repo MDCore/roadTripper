@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 import { test, describe } from 'node:test';
-import { calculateBearing, calculateDistance, getBestLink } from './lib.js';
+import { calculateHeading, calculateDistance, getBestLink } from './lib.js';
 
 describe('Navigator Math', () => {
   test('calculateDistance should be accurate for known points', () => {
@@ -11,15 +11,15 @@ describe('Navigator Math', () => {
     assert.ok(dist < 5600000, `Distance ${dist} too large`);
   });
 
-  test('calculateBearing should be correct for cardinal directions', () => {
+  test('calculateHeading should be correct for cardinal directions', () => {
     // North
-    assert.strictEqual(Math.round(calculateBearing(0, 0, 1, 0)), 0);
+    assert.strictEqual(Math.round(calculateHeading(0, 0, 1, 0)), 0);
     // East
-    assert.strictEqual(Math.round(calculateBearing(0, 0, 0, 1)), 90);
+    assert.strictEqual(Math.round(calculateHeading(0, 0, 0, 1)), 90);
     // South
-    assert.strictEqual(Math.round(calculateBearing(0, 0, -1, 0)), 180);
+    assert.strictEqual(Math.round(calculateHeading(0, 0, -1, 0)), 180);
     // West
-    assert.strictEqual(Math.round(calculateBearing(0, 0, 0, -1)), 270);
+    assert.strictEqual(Math.round(calculateHeading(0, 0, 0, -1)), 270);
   });
 
   test('getBestLink should find the closest heading', () => {
@@ -28,11 +28,11 @@ describe('Navigator Math', () => {
       { heading: 100, pano: 'b' },
       { heading: 350, pano: 'c' }
     ];
-    
+
     // Target 0 (North) -> Should pick 350 (diff 10) or 10 (diff 10).
     // Our logic picks the first one with minDiff. 350 -> diff 10. 10 -> diff 10.
     // 350 vs 0 is 10 deg. 10 vs 0 is 10 deg.
-    
+
     const best = getBestLink(links, 0);
     assert.ok(best.pano === 'a' || best.pano === 'c');
 

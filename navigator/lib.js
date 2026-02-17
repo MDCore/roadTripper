@@ -1,4 +1,4 @@
-export function calculateBearing(lat1, lon1, lat2, lon2) {
+export function calculateHeading(lat1, lon1, lat2, lon2) {
   const y = Math.sin((lon2 - lon1) * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180);
   const x = Math.cos(lat1 * Math.PI / 180) * Math.sin(lat2 * Math.PI / 180) -
     Math.sin(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.cos((lon2 - lon1) * Math.PI / 180);
@@ -20,13 +20,13 @@ export function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-export function getBestLink(links, targetBearing) {
+export function getBestLink(links, targetHeading) {
   if (!links || links.length === 0) return null;
   let closestLink = null;
   let minDiff = 360;
 
   for (const link of links) {
-    let diff = Math.abs(link.heading - targetBearing);
+    let diff = Math.abs(link.heading - targetHeading);
     if (diff > 180) diff = 360 - diff;
 
     // Threshold: Don't pick a link that is more than 90 degrees away from our target
@@ -55,7 +55,7 @@ export function saveState(fs, STATE_FILE, index, currentPos) {
     pano: currentPos.pano,
     lat: currentPos.lat,
     lng: currentPos.lng,
-    bearing: currentPos.bearing | 0
+    heading: currentPos.heading || 0
   });
   console.log(`Saving state ${logState}`);
   fs.writeFileSync(STATE_FILE, JSON.stringify({
@@ -63,7 +63,7 @@ export function saveState(fs, STATE_FILE, index, currentPos) {
     pano: currentPos.pano,
     lat: currentPos.lat,
     lng: currentPos.lng,
-    bearing: currentPos.bearing | 0
+    heading: currentPos.heading || 0
   }, null, 2));
 }
 
@@ -79,12 +79,12 @@ export function decideNextAction(currentPosition, targetStep, route, links) {
   }
 
   // Logic: Move to next pano
-  const bearing = calculateBearing(currentPosition.lat, currentPosition.lng, nextPoint.lat, nextPoint.lng);
-  const bestLink = getBestLink(links, bearing);
+  const heading = calculateHeading(currentPosition.lat, currentPosition.lng, nextPoint.lat, nextPoint.lng);
+  const bestLink = getBestLink(links, heading);
 
   if (bestLink) {
-    return { action: 'MOVE', link: bestLink, bearing: bearing, distance: dist };
+    return { action: 'MOVE', link: bestLink, heading: heading, distance: dist };
   }
 
-  return { action: 'NO_LINK', bearing: bearing, distance: dist };
+  return { action: 'NO_LINK', heading: heading, distance: dist };
 }

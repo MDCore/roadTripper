@@ -53,6 +53,9 @@ suite('Run Logic', () => {
     }
     });
 
+    const mockPositions = {
+      ///ZZZ todo
+    }
     const mockProject = createMockProject({
       route: [{lat:0, lng:0}]
     });
@@ -61,7 +64,7 @@ suite('Run Logic', () => {
     assert.equal(screenshotCount, 1);
   });
 
-  test('3 step trip without starting state', async (test) => {
+  test('2 step trip without starting state', async (test) => {
     let screenshotCount = 0;
     const mockPage = createMockPage({
       screenshot: async () => { screenshotCount++; }
@@ -76,11 +79,11 @@ suite('Run Logic', () => {
     }
     });
     const mockProject = createMockProject({
-      route: [{"lat":-33.91512,"lng":18.42272},{"lat":-33.91457,"lng":18.42345},{"lat":-33.91431,"lng":18.42391}]
+      route: [{"lat":-33.91512,"lng":18.42272},{"lat":-33.914570000000005,"lng":18.423450000000003}]
     });
 
     await run(mockProject, { page: mockPage, fs: mockFs });
-    assert.equal(screenshotCount, 3);
+    assert.equal(screenshotCount, 8);
   });
 
   // test('3 step trip with starting state on step 2', async (test) => {
@@ -89,7 +92,7 @@ suite('Run Logic', () => {
   //     lastPano: 'pano_123',
   //     lastLat: 40.7,
   //     lastLng: -74.0,
-  //     lastBearing: 90
+  //     lastHeading: 90
   //   };
   //   // 2. Create a spy to capture what gets "saved"
   //   let savedData = null;

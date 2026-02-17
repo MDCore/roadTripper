@@ -1,9 +1,21 @@
 
 export const createMockPage = (overrides = {}) => ({
   evaluate: async (fn, args) => {
-    return { lat: 40, lng: -74, pano: 'abc', ...overrides.evaluateResult };
+    if (fn.toString().includes(' => initPanorama')) {
+      return true;
+    }
+    if (fn.toString().includes (' => moveToPano')) {
+      return true;
+    }
+    if (fn.toString().includes (' => getPosition()')) {
+
+    }
+    if (fn.toString().includes (' => getLinks')) {
+      return [{ lat: 40, lng: -74, pano: 'abc'}];
+    }
   },
   waitForFunction: async () => {},
+  waitForLoadState: async () => {},
   waitForTimeout: async () => {},
   screenshot: async () => {},
   ...overrides

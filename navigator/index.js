@@ -3,7 +3,7 @@ import * as realFs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
 import signale from 'signale'; const { Signale } = signale;
-import { calculateBearing, calculateDistance, getBestLink, loadState, saveState, decideNextAction } from './lib.js';
+import { calculateHeading, calculateDistance, getBestLink, loadState, saveState, decideNextAction } from './lib.js';
 import { fileURLToPath } from 'url';
 
 // Global variables (initialized in main or used by helpers)
@@ -36,9 +36,12 @@ async function captureScreenshot(imagePath, page, position) {
 // ------------------------------------------
 
 async function setupViewport(fs) {
-  const browser = await chromium.launch({ headless: false });
+  const browser = await chromium.launch({
+     headless: false,
+     //args: ['--auto-open-devtools-for-tabs']
+    });
   const page = await browser.newPage({
-    viewport: { width: WIDTH, height: HEIGHT }
+   viewport: { width: WIDTH, height: HEIGHT }
   });
 
   // Forward browser logs to terminal and log file
@@ -77,10 +80,25 @@ async function waitForStablePanorama(page) {
   await page.waitForFunction(() => {
     return getPosition() && getLinks() && getLinks().length > 0;
   }, null, { timeout: 5000 });
-  return {
-    currentPos: await page.evaluate(() => getPosition()),
+  const result = {
+    position: await page.evaluate(() => getPosition()),
     links: await page.evaluate(() => getLinks())
   };
+
+  // Wait for network to be idle (tiles loaded)
+  await page.waitForLoadState('networkidle');
+
+  return result;
+}
+
+export async function moveToPano(page, position) {
+  page.evaluate(({ heading, pano }) => moveToPano(pano, heading), { heading: position.heading, pano: position.pano });
+
+  // Wait for network to be idle (tiles loaded)
+  await page.waitForLoadState('networkidle');
+  // Additional safety wait
+  await page.waitForTimeout(STEP_DELAY);
+
 }
 
 async function checkPanoQuality(page, currentPos, lastImageDate, stepsSinceAgeCheck) {
@@ -99,13 +117,13 @@ async function checkPanoQuality(page, currentPos, lastImageDate, stepsSinceAgeCh
       log.warn(`🔄 Attempting to recover by searching for newer imagery at this location...`);
 
       // Reinitialize at current position to let Google find newest imagery
-      const bearing = calculateBearing(currentPos.lat, currentPos.lng, route[step].lat, route[step].lng);
+      const heading = calculateHeading(currentPos.lat, currentPos.lng, route[step].lat, route[step].lng);
       await page.evaluate(({ lat, lng, heading }) => initPanorama(lat, lng, heading, null),
-        { lat: currentPos.lat, lng: currentPos.lng, heading: bearing });
+        { lat: currentPos.lat, lng: currentPos.lng, heading: heading });
 
       // Wait for stability again after re-init
       const stabilityResult = await waitForStablePanorama(page);
-      const recoveredPos = stabilityResult.currentPos;
+      const recoveredPos = stabilityResult.position;
 
       if (recoveredPos.imageDate) {
         const recoveredDate = new Date(recoveredPos.imageDate);
@@ -136,13 +154,13 @@ async function checkPanoQuality(page, currentPos, lastImageDate, stepsSinceAgeCh
       log.warn(`🔄 Checking for newer imagery at this location...`);
 
       // Reinitialize at current position to let Google find newest imagery
-      const bearing = calculateBearing(currentPos.lat, currentPos.lng, route[step].lat, route[step].lng);
+      const heading = calculateHeading(currentPos.lat, currentPos.lng, route[step].lat, route[step].lng);
       await page.evaluate(({ lat, lng, heading }) => initPanorama(lat, lng, heading, null),
-        { lat: currentPos.lat, lng: currentPos.lng, heading: bearing });
+        { lat: currentPos.lat, lng: currentPos.lng, heading: heading });
 
       // Wait for stability again after re-init
       const stabilityResult = await waitForStablePanorama(page);
-      const recoveredPos = stabilityResult.currentPos;
+      const recoveredPos = stabilityResult.position;
 
       if (recoveredPos.imageDate) {
         const recoveredDate = new Date(recoveredPos.imageDate);
@@ -168,13 +186,7 @@ async function checkPanoQuality(page, currentPos, lastImageDate, stepsSinceAgeCh
   return currentPos, stepsSinceAgeCheck;
 }
 
-export async function moveToPano(page, position = { pano: pano, lat: lat, lng: lng, bearing: bearing}) {
-  //
-  return false; //ZZZ
-}
-
 export async function run(project, { fs = realFs, page = null } = {}) {
-
 
   const route = project.route;
   const state = loadState(fs, project.stateFile);
@@ -182,22 +194,28 @@ export async function run(project, { fs = realFs, page = null } = {}) {
   let currentStep = state.step;
   let currentPosition = {
     pano: state.pano,
-    lat: state.lat | route[currentStep].lat,
-    lng: state.lng | route[currentStep].lng,
-    bearing: state.bearing | 1
+    lat: state.lat || route[currentStep].lat,
+    lng: state.lng || route[currentStep].lng,
+    heading: state.heading || 1
   };
 
   if (!page) { page = await setupViewport(fs); }
-  await page.evaluate(({ lat, lng, heading, pano }) => initPanorama(lat, lng, heading, pano), { lat: currentPosition.lat, lng: currentPosition.lng, bearing: currentPosition.bearing, pano: currentPosition.pano });
+  await page.evaluate(({ lat, lng, heading, pano }) => initPanorama(lat, lng, heading, pano), { lat: currentPosition.lat, lng: currentPosition.lng, heading: currentPosition.heading, pano: currentPosition.pano });
   let links = null;
-  ({ currentPosition, links } = await waitForStablePanorama(page));
-
-  //  moveToPano(page, state);
+({ position: currentPosition, links } = await waitForStablePanorama(page));
 
   let roadTripping = true;
   while (roadTripping) {
 
+    // get the heading
+    let nextStep = null;
+    let heading = null;
+    if (currentStep < route.length - 1) {
+      nextStep = { lat: route[currentStep + 1].lat, lng: route[currentStep + 1].lng };
+      currentPosition.heading = nextStep ? calculateHeading(route[currentStep].lat, route[currentStep].lng, nextStep.lat, nextStep.lng) : 0;
+    }
     if (currentPosition.pano) {
+      await moveToPano(page, currentPosition);
       await captureScreenshot(project.imagePath, page, currentPosition);
     }
 
@@ -206,45 +224,33 @@ export async function run(project, { fs = realFs, page = null } = {}) {
       return true;
     }
 
-    let nextStep = { lat: route[currentStep + 1].lat, lng: route[currentStep + 1].lng };
     const distToNextStep = calculateDistance(currentPosition.lat, currentPosition.lng, nextStep.lat, nextStep.lng);
-    log.info(`Target ${currentStep}/${route.length} - Dist: ${distToNextStep.toFixed(1)}m`);
+    log.info(`Target ${currentStep + 1}/${route.length} - Dist: ${distToNextStep.toFixed(1)}m`);
 
     // Start again at next Step
     if (distToNextStep < 25) {
-      log.info(`Reached target step ${currentStep}`);
-      //ZZZ Update Current + Next Step
-      currentPosition = { pano: "default", lat: nextStep.lat, lng: nextStep.lng, bearing: currentPosition.bearing }; // Keep current bearing
+      log.info(`Reached target step ${currentStep + 1}`);
+      //ZZZ Update Current + Next Step + find nearest pano default will not
+      currentPosition = { pano: "default", lat: nextStep.lat, lng: nextStep.lng, heading: currentPosition.heading }; // Keep current heading
       currentStep++;
-      currentPosition = moveToPano(page, currentPosition);
+      moveToPano(page, currentPosition);
       continue;
     } else if (!currentPosition.pano) {
       log.info(`Finding nearest pano`);
     }
 
-    // x. Move: Calculate and Execute
     log.info(`Found ${links ? links.length : 0} available links`);
-    const bestLink = getBestLink(links, bearing);
+    const bestLink = getBestLink(links, heading);
 
     if (bestLink) {
-      log.info(`→ Moving to pano: ${bestLink.pano} (Heading: ${bestLink.heading.toFixed(1)}°, Target: ${bearing.toFixed(1)}°)`);
-
-      await page.evaluate(({ panoId, heading }) => moveToPano(panoId, heading), {
-        panoId: bestLink.pano,
-        heading: bestLink.heading
-      });
-
-      // Wait for network to be idle (tiles loaded)
-      await page.waitForLoadState('networkidle');
-      // Additional safety wait
-      await page.waitForTimeout(STEP_DELAY);
+      log.info(`→ Moving to pano: ${bestLink.pano} (Heading: ${bestLink.heading.toFixed(1)}°)`);
+      await moveToPano(page, bestLink);
     } else {
       log.fatal(`TEMP EXIT: No Best Link`); //ZZZ better error message
       process.exit(1);
     }
     // ... //
 
-    currentStep++;
     saveState(fs, project.stateFile, currentStep, currentPosition); // save current position but starting at the next step
 
     //roadTripping = false;
@@ -276,30 +282,30 @@ async function oldrun(project, { fs = realFs, page = null } = {}) {
       pano: state.pano,
       lat: state.lat,
       lng: state.lng,
-      bearing: state.bearing
+      heading: state.heading
     } : {
       pano: "default",
       lat: route[step].lat,
       lng: route[step].lng,
-      bearing: 0
+      heading: 0
     };
 
     log.info(`Navigating from point ${step}: ${route[step].lat}, ${route[step].lng} - ${route.length - step} steps remaining`);
     log.info(`Current Position: pano: ${currentPos.pano}) lat: ${currentPos.lat}, lng: ${currentPos.lng}`);
 
-// 1. Get bearing from current to next point ----------------------------------
+// 1. Get heading from current to next point ----------------------------------
     const nextPoint = route[step + 1];
     log.info(`Targeting point ${step + 1}: ${nextPoint.lat}, ${nextPoint.lng}`);
-    // ZZZ bearing will be 0 on last point - maybe keep previous bearing? state.bearing?
-    const bearing = nextPoint ? calculateBearing(route[step].lat, route[step].lng, nextPoint.lat, nextPoint.lng) : 0;
+    // ZZZ heading will be 0 on last point - maybe keep previous heading? state.heading?
+    const heading = nextPoint ? calculateHeading(route[step].lat, route[step].lng, nextPoint.lat, nextPoint.lng) : 0;
 
-// 2. Init the panorama with the current point + bearing ----------------------
+// 2. Init the panorama with the current point + heading ----------------------
     await page.evaluate(({ lat, lng, heading, pano }) => initPanorama(lat, lng, heading, pano),
-      { lat: state.lat, lng: state.lng, heading: bearing, pano: state.pano });
+      { lat: currentPos.lat, lng: currentPos.lng, heading: currentPos,heading, pano: currentPos.pano });
 
 // 3. Make sure the pano is stable (stable position, pano and links are loaded)
     let links = null;
-   ({ currentPos, links } = await waitForStablePanorama(page));
+   ({ position: currentPos, links } = await waitForStablePanorama(page));
 
 // 4. Take a screenshot -------------------------------------------------------
     if (state.pano) {
@@ -333,10 +339,10 @@ async function oldrun(project, { fs = realFs, page = null } = {}) {
 
     // x. Move: Calculate and Execute
     log.info(`Found ${links ? links.length : 0} available links`);
-    const bestLink = getBestLink(links, bearing);
+    const bestLink = getBestLink(links, heading);
 
     if (bestLink) {
-      log.info(`→ Moving to pano: ${bestLink.pano} (Heading: ${bestLink.heading.toFixed(1)}°, Target: ${bearing.toFixed(1)}°)`);
+      log.info(`→ Moving to pano: ${bestLink.pano} (Heading: ${bestLink.heading.toFixed(1)}°, Target: ${heading.toFixed(1)}°)`);
 
       await page.evaluate(({ panoId, heading }) => moveToPano(panoId, heading), {
         panoId: bestLink.pano,
@@ -462,7 +468,7 @@ async function main({ fs = realFs, project } = {}) {
   }
 
   await run(project, { fs, page: null });
-
+  process.exit(0);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
