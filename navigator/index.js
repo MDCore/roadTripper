@@ -247,7 +247,7 @@ export async function run(project, { fs = realFs, page = null } = {}) {
       await moveToPano(page, bestLink);
     } else {
       log.fatal(`TEMP EXIT: No Best Link`); //ZZZ better error message
-      process.exit(1);
+      return false;
     }
     // ... //
 
