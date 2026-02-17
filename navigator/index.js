@@ -175,7 +175,6 @@ export async function moveToPano(page, position = { pano: pano, lat: lat, lng: l
 
 export async function run(project, { fs = realFs, page = null } = {}) {
 
-  if (!page) { page = await setupViewport(fs); }
 
   const route = project.route;
   const state = loadState(fs, project.stateFile);
@@ -188,6 +187,7 @@ export async function run(project, { fs = realFs, page = null } = {}) {
     bearing: state.bearing | 1
   };
 
+  if (!page) { page = await setupViewport(fs); }
   await page.evaluate(({ lat, lng, heading, pano }) => initPanorama(lat, lng, heading, pano), { lat: currentPosition.lat, lng: currentPosition.lng, bearing: currentPosition.bearing, pano: currentPosition.pano });
   let links = null;
   ({ currentPosition, links } = await waitForStablePanorama(page));
