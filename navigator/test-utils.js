@@ -1,20 +1,15 @@
+if (!global.getPosition) global.getPosition = () => {};
+if (!global.getLinks) global.getLinks = () => [];
+if (!global.initPanorama) global.initPanorama = () => {};
+if (!global.moveToPano) global.moveToPano = () => {};
 
 export const createMockPage = (overrides = {}) => ({
-  evaluate: async (fn, args) => {
-    if (fn.toString().includes(' => initPanorama')) {
-      return true;
+evaluate: async (fn, args) => {
+    if (overrides.evaluate) {
+      return overrides.evaluate(fn, args);
     }
-    if (fn.toString().includes (' => moveToPano')) {
-      return true;
-    }
-    if (fn.toString().includes (' => getPosition()')) {
-
-    }
-    if (fn.toString().includes (' => getLinks')) {
-      return [{ lat: 40, lng: -74, pano: 'abc'}];
-    }
-  },
-  waitForFunction: async () => {},
+    return fn(args);
+  },  waitForFunction: async () => {},
   waitForLoadState: async () => {},
   waitForTimeout: async () => {},
   screenshot: async () => {},
@@ -34,3 +29,11 @@ export const createMockProject = (overrides = {}) => ({
       imagePath: 'test/images',
   ...overrides
 });
+
+export const mockPosition = (t, implementation) => {
+  t.mock.method(global, 'getPosition', implementation);
+};
+
+export const mockLinks = (t, implementation) => {
+  t.mock.method(global, 'getLinks', implementation);
+};

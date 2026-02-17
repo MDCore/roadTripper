@@ -2,8 +2,7 @@ import { test, suite } from 'node:test';
 import assert from 'node:assert/strict';
 import { decideNextAction } from './lib.js';
 import { run } from './index.js';
-import { createMockPage, createMockFs, createMockProject } from './test-utils.js';
-import { existsSync } from 'node:fs';
+import { createMockPage, createMockFs, createMockProject, mockPosition } from './test-utils.js';
 
 suite('Navigation Logic', () => {
   const dummyRoute = [
@@ -53,11 +52,18 @@ suite('Run Logic', () => {
     }
     });
 
-    const mockPositions = {
-      ///ZZZ todo
-    }
+    const positions = [
+      { lat: -33.9, lng: 18.42, pano: 'abc123', heading: 25 }
+    ];
+
+    // Use the helper to override global.getPosition for this test ONLY
+    mockPosition(test, () => {
+      // Return the next one, or a safe default if empty
+      return positions.shift();
+    });
+
     const mockProject = createMockProject({
-      route: [{lat:0, lng:0}]
+      route: [{lat:-33.9, lng:18.42}]
     });
 
     await run(mockProject, { page: mockPage, fs: mockFs });
