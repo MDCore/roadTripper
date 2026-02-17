@@ -76,19 +76,13 @@ async function setupViewport(fs) {
   return page;
 }
 
-async function waitForStablePanorama(page) {
-  await page.waitForFunction(() => {
-    return getPosition() && getLinks() && getLinks().length > 0;
-  }, null, { timeout: 5000 });
-  const result = {
-    position: await page.evaluate(() => getPosition()),
-    links: await page.evaluate(() => getLinks())
-  };
+async function initPanorama(page, currentPosition) {
+  await page.evaluate(({ lat, lng, heading, pano }) => initPanorama(lat, lng, heading, pano), { lat: currentPosition.lat, lng: currentPosition.lng, heading: currentPosition.heading, pano: currentPosition.pano });
 
-  // Wait for network to be idle (tiles loaded)
+    // Wait for network to be idle (tiles loaded)
   await page.waitForLoadState('networkidle');
 
-  return result;
+  return await getCurrentPosition(page);
 }
 
 export async function moveToPano(page, position) {
@@ -100,9 +94,27 @@ export async function moveToPano(page, position) {
   await page.waitForTimeout(STEP_DELAY);
 }
 
-export async function getPositionOfPano(page, pano) {
-  const result = await page.evaluate(({ pano }) => getPositionOfPano(pano), { pano: pano });
+export async function getCurrentPosition(page) {
+  const result = await page.evaluate(() => getCurrentPosition());
   return result;
+}
+
+export async function getPositionOfPano(page, pano, heading) {
+  const newPano = await page.evaluate(({ pano }) => getPositionOfPano(pano), { pano: pano });
+  let currentPosition = {};
+  if (newPano.latestPano !== newPano.pano) {
+    log.warn(`Not the latest pano! Switching from to ${newPano.pano} to ${newPano.latestPano}`);
+    newPano.pano = newPano.latestPano;
+    newPano.imageDate = newPano.latestPanoDate;
+  }
+  currentPosition.lat = newPano.lat;
+  currentPosition.lng = newPano.lng;
+  currentPosition.heading = heading;
+  currentPosition.pano = newPano.pano;
+  currentPosition.imageDate = newPano.imageDate;
+  currentPosition.links = newPano.links;
+  //log.debug(newPano.times);
+  return currentPosition;
 }
 
 export async function run(project, { fs = realFs, page = null } = {}) {
@@ -115,13 +127,12 @@ export async function run(project, { fs = realFs, page = null } = {}) {
     pano: state.pano,
     lat: state.lat || route[currentStep].lat,
     lng: state.lng || route[currentStep].lng,
-    heading: state.heading || 1
+    heading: state.heading || 1,
+    links: null
   };
 
   if (!page) { page = await setupViewport(fs); }
-  await page.evaluate(({ lat, lng, heading, pano }) => initPanorama(lat, lng, heading, pano), { lat: currentPosition.lat, lng: currentPosition.lng, heading: currentPosition.heading, pano: currentPosition.pano });
-  let links = null;
-({ position: currentPosition, links } = await waitForStablePanorama(page));
+  currentPosition = await initPanorama(page, currentPosition);
 
   let roadTripping = true;
   while (roadTripping) {
@@ -134,8 +145,7 @@ export async function run(project, { fs = realFs, page = null } = {}) {
       currentPosition.heading = nextStep ? calculateHeading(route[currentStep].lat, route[currentStep].lng, nextStep.lat, nextStep.lng) : 0;
     }
     if (currentPosition.pano) {
-      //log.debug(`moving to pano ${currentPosition.pano}`);
-      await moveToPano(page, currentPosition); //ZZZ this is being duplicated sometimes
+      await moveToPano(page, currentPosition);
       await captureScreenshot(project.imagePath, page, currentPosition);
     }
 
@@ -149,39 +159,37 @@ export async function run(project, { fs = realFs, page = null } = {}) {
 
     // Start again at next Step
     if (distToNextStep < 25) {
-      log.info(`Reached target step ${currentStep + 1}`);
-      //ZZZ Update Current + Next Step + find nearest pano default will not
       currentPosition = { pano: null, lat: nextStep.lat, lng: nextStep.lng, heading: currentPosition.heading }; // Keep current heading
       currentStep++;
-      currentPosition = await moveToPano(page, currentPosition);
+      log.info(`Reached target step ${currentStep} resetting to ${currentPosition.lat}, ${currentPosition.lng})`);
+      currentPosition = await initPanorama(page, currentPosition);
+      currentPosition = await getPositionOfPano(page, currentPosition.pano, currentPosition.heading);
       continue;
     } else if (!currentPosition.pano) {
       log.info(`Finding nearest pano`);
-      //ZZZ find nearest pano
+      log.fatal(`not implemented yet!`); //ZZZ better error message
+      return false;
       currentPosition = await moveToPano(page, currentPosition);
       continue;
     }
 
-    const bestLink = getBestLink(links, heading);
+    const bestLink = getBestLink(currentPosition.links, heading);
     if (bestLink) {
       log.info(`Checking linked pano: ${bestLink.pano} (Heading: ${bestLink.heading.toFixed(1)}°)`);
-      //currentPosition = await moveToPano(page, bestLink);
-      const newPano = await getPositionOfPano(page, bestLink.pano);
-      if (newPano.latestPano !== bestLink.pano) {
-        log.warn(`Not the latest pano! Switching from to ${bestLink.pano} to ${newPano.latestPano}`);
-        bestLink.pano = newPano.latestPano;
-      }
-      currentPosition.lat = newPano.lat;
-      currentPosition.lng = newPano.lng;
-      currentPosition.heading = bestLink.heading;
-      currentPosition.pano = bestLink.pano;
-      currentPosition.imageDate = newPano.imageDate;
-      links = newPano.links;
+      currentPosition = await getPositionOfPano(page, bestLink.pano, bestLink.heading);
       log.info(`Setting new pano to ${currentPosition.pano}`);
-
     } else {
-      log.fatal(`EXIT: No Best Link`); //ZZZ better error message
-      return false;
+      // reset to current position
+      let preResetPano = currentPosition.pano;
+      log.warn(`No best link - resetting to current position ${currentPosition.lat}, ${currentPosition.lng}`)
+      currentPosition = await initPanorama(page, currentPosition);
+      currentPosition = await getPositionOfPano(page, currentPosition.pano, currentPosition.heading);
+      if (preResetPano === currentPosition.pano) {
+        log.fatal('Reset landed on the same pano. Exiting');
+        return false;
+      }
+
+      continue;
     }
 
     saveState(fs, project.stateFile, currentStep, currentPosition); // save current position but starting at the next step

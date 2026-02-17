@@ -49,29 +49,31 @@ export function loadState(fs, STATE_FILE) {
   return { "step": 0 }
 }
 
-export function saveState(fs, STATE_FILE, index, currentPos) {
+export function saveState(fs, STATE_FILE, index, position) {
   const logState = JSON.stringify({
     step: index,
-    pano: currentPos.pano,
-    lat: currentPos.lat,
-    lng: currentPos.lng,
-    heading: currentPos.heading || 0
+    pano: position.pano,
+    lat: position.lat,
+    lng: position.lng,
+    heading: position.heading || 0,
+    imageDate: position.imageDate || null
   });
   console.log(`Saving state ${logState}`);
   fs.writeFileSync(STATE_FILE, JSON.stringify({
     step: index,
-    pano: currentPos.pano,
-    lat: currentPos.lat,
-    lng: currentPos.lng,
-    heading: currentPos.heading || 0
+    pano: position.pano,
+    lat: position.lat,
+    lng: position.lng,
+    heading: position.heading || 0,
+    imageDate: position.imageDate || null
   }, null, 2));
 }
 
-export function decideNextAction(currentPosition, targetStep, route, links) {
+export function decideNextAction(positionition, targetStep, route, links) {
   const nextPoint = route[targetStep + 1];
   if (!nextPoint) return { action: 'FINISH' };
 
-  const dist = calculateDistance(currentPosition.lat, currentPosition.lng, nextPoint.lat, nextPoint.lng);
+  const dist = calculateDistance(positionition.lat, positionition.lng, nextPoint.lat, nextPoint.lng);
 
   // Logic: Reached waypoint?
   if (dist < 25) {
@@ -79,7 +81,7 @@ export function decideNextAction(currentPosition, targetStep, route, links) {
   }
 
   // Logic: Move to next pano
-  const heading = calculateHeading(currentPosition.lat, currentPosition.lng, nextPoint.lat, nextPoint.lng);
+  const heading = calculateHeading(positionition.lat, positionition.lng, nextPoint.lat, nextPoint.lng);
   const bestLink = getBestLink(links, heading);
 
   if (bestLink) {

@@ -68,10 +68,6 @@
       return !!panorama;
     }
 
-    function getLinks() {
-      return panorama.getLinks();
-    }
-
     function moveToPano(pano, heading) {
       panorama.setPano(pano);
       if (heading !== undefined) {
@@ -79,7 +75,7 @@
       }
     }
 
-    function getPosition() {
+    function getCurrentPosition() {
       const pos = panorama.getPosition();
       if (!pos) {
         return null;
@@ -99,7 +95,8 @@
         lng: pos.lng(),
         heading: panorama.getPov().heading,
         pano: panorama.getPano(),
-        imageDate: imageDate
+        imageDate: imageDate,
+        links: panorama.getLinks()
       };
     }
     async function getPositionOfPano(pano) {
@@ -112,8 +109,11 @@
               imageDate: imageDate,
               lat: data.location.latLng.lat(),
               lng: data.location.latLng.lng(),
+              pano: pano,
               links: data.links,
-              latestPano: data.time[data.time.length-1].pano
+              times: data.time,
+              latestPano: data.time[data.time.length-1].pano,
+              latestPanoDate: new Date(data.time[data.time.length-1].HA).toISOString()
             };
             resolve(result);
           } else {
