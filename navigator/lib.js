@@ -46,21 +46,45 @@ export function loadState(fs, STATE_FILE) {
       console.warn('Warning: Could not parse state file. Starting from scratch.');
     }
   }
-  return { "lastStep": 1 }
+  return { "step": 0 }
 }
 
 export function saveState(fs, STATE_FILE, index, currentPos) {
   const logState = JSON.stringify({
-    lastStep: index,
-    lastPano: currentPos.pano,
-    lastLat: currentPos.lat,
-    lastLng: currentPos.lng
+    step: index,
+    pano: currentPos.pano,
+    lat: currentPos.lat,
+    lng: currentPos.lng,
+    bearing: currentPos.bearing | 0
   });
   console.log(`Saving state ${logState}`);
   fs.writeFileSync(STATE_FILE, JSON.stringify({
-    lastStep: index,
-    lastPano: currentPos.pano,
-    lastLat: currentPos.lat,
-    lastLng: currentPos.lng
+    step: index,
+    pano: currentPos.pano,
+    lat: currentPos.lat,
+    lng: currentPos.lng,
+    bearing: currentPos.bearing | 0
   }, null, 2));
+}
+
+export function decideNextAction(currentPosition, targetStep, route, links) {
+  const nextPoint = route[targetStep + 1];
+  if (!nextPoint) return { action: 'FINISH' };
+
+  const dist = calculateDistance(currentPosition.lat, currentPosition.lng, nextPoint.lat, nextPoint.lng);
+
+  // Logic: Reached waypoint?
+  if (dist < 25) {
+    return { action: 'NEXT_WAYPOINT', distance: dist };
+  }
+
+  // Logic: Move to next pano
+  const bearing = calculateBearing(currentPosition.lat, currentPosition.lng, nextPoint.lat, nextPoint.lng);
+  const bestLink = getBestLink(links, bearing);
+
+  if (bestLink) {
+    return { action: 'MOVE', link: bestLink, bearing: bearing, distance: dist };
+  }
+
+  return { action: 'NO_LINK', bearing: bearing, distance: dist };
 }

@@ -1,17 +1,18 @@
 import { chromium } from 'playwright';
-import fs from 'fs';
+import * as realFs from 'fs';
 import path from 'path';
-import dotenv from 'dotenv'; dotenv.config();
+import dotenv from 'dotenv';
 import signale from 'signale'; const { Signale } = signale;
-import { calculateBearing, calculateDistance, getBestLink, loadState, saveState } from './lib.js';
+import { calculateBearing, calculateDistance, getBestLink, loadState, saveState, decideNextAction } from './lib.js';
 import { fileURLToPath } from 'url';
 
 // Global variables (initialized in main or used by helpers)
 let log = new Signale({ disabled: true }); // Default to silent for tests
-let PROJECT_DIR, IMAGES_DIR, ROUTE_FILE, STATE_FILE, WIDTH, HEIGHT, STEP_DELAY, MIN_IMAGE_YEAR, MAX_IMAGE_AGE_MONTHS;
+
+let WIDTH, HEIGHT, STEP_DELAY, MIN_IMAGE_YEAR, MAX_IMAGE_AGE_MONTHS;
 
 
-async function captureScreenshot(page, position) {
+async function captureScreenshot(imagePath, page, position) {
   // Log image date/age if available
   let ageStr = ' [unknown]';
   if (position.imageDate) {
@@ -22,12 +23,11 @@ async function captureScreenshot(page, position) {
   }
 
   log.info(`Capturing pano ${position.pano} at ${position.lat}, ${position.lng}`)
-  // Move mouse out of viewport to avoid cursor artifacts
-  await page.mouse.move(0, 0);
-  await page.waitForTimeout(500);
+  //ZZZ is this necessary? await page.mouse.move(0, 0); // Move mouse out of viewport to avoid cursor artifacts
+  await page.waitForTimeout(100);
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const filename = path.join(IMAGES_DIR, `${timestamp}_${position.lat}_${position.lng}.jpg`);
+  const filename = path.join(imagePath, `${timestamp}_${position.lat}_${position.lng}.jpg`);
 
   await page.screenshot({ path: filename, type: 'jpeg', quality: 90 });
   log.info(`📷 Captured: ${path.basename(filename)}${ageStr}`);
@@ -35,7 +35,7 @@ async function captureScreenshot(page, position) {
 
 // ------------------------------------------
 
-async function setupPage() {
+async function setupViewport(fs) {
   const browser = await chromium.launch({ headless: false });
   const page = await browser.newPage({
     viewport: { width: WIDTH, height: HEIGHT }
@@ -76,7 +76,7 @@ async function setupPage() {
 async function waitForStablePanorama(page) {
   await page.waitForFunction(() => {
     return getPosition() && getLinks() && getLinks().length > 0;
-  }, null, { timeout: 15000 });
+  }, null, { timeout: 5000 });
   return {
     currentPos: await page.evaluate(() => getPosition()),
     links: await page.evaluate(() => getLinks())
@@ -168,11 +168,93 @@ async function checkPanoQuality(page, currentPos, lastImageDate, stepsSinceAgeCh
   return currentPos, stepsSinceAgeCheck;
 }
 
-async function run(route) {
+export async function moveToPano(page, position = { pano: pano, lat: lat, lng: lng, bearing: bearing}) {
+  //
+  return false; //ZZZ
+}
 
+export async function run(project, { fs = realFs, page = null } = {}) {
+
+  if (!page) { page = await setupViewport(fs); }
+
+  const route = project.route;
+  const state = loadState(fs, project.stateFile);
+
+  let currentStep = state.step;
+  let currentPosition = {
+    pano: state.pano,
+    lat: state.lat | route[currentStep].lat,
+    lng: state.lng | route[currentStep].lng,
+    bearing: state.bearing | 1
+  };
+
+  await page.evaluate(({ lat, lng, heading, pano }) => initPanorama(lat, lng, heading, pano), { lat: currentPosition.lat, lng: currentPosition.lng, bearing: currentPosition.bearing, pano: currentPosition.pano });
+  let links = null;
+  ({ currentPosition, links } = await waitForStablePanorama(page));
+
+  //  moveToPano(page, state);
+
+  let roadTripping = true;
+  while (roadTripping) {
+
+    if (currentPosition.pano) {
+      await captureScreenshot(project.imagePath, page, currentPosition);
+    }
+
+    if (currentStep >= route.length - 1) {
+      log.info(`Trip complete`);
+      return true;
+    }
+
+    let nextStep = { lat: route[currentStep + 1].lat, lng: route[currentStep + 1].lng };
+    const distToNextStep = calculateDistance(currentPosition.lat, currentPosition.lng, nextStep.lat, nextStep.lng);
+    log.info(`Target ${currentStep}/${route.length} - Dist: ${distToNextStep.toFixed(1)}m`);
+
+    // Start again at next Step
+    if (distToNextStep < 25) {
+      log.info(`Reached target step ${currentStep}`);
+      //ZZZ Update Current + Next Step
+      currentPosition = { pano: "default", lat: nextStep.lat, lng: nextStep.lng, bearing: currentPosition.bearing }; // Keep current bearing
+      currentStep++;
+      currentPosition = moveToPano(page, currentPosition);
+      continue;
+    } else if (!currentPosition.pano) {
+      log.info(`Finding nearest pano`);
+    }
+
+    // x. Move: Calculate and Execute
+    log.info(`Found ${links ? links.length : 0} available links`);
+    const bestLink = getBestLink(links, bearing);
+
+    if (bestLink) {
+      log.info(`→ Moving to pano: ${bestLink.pano} (Heading: ${bestLink.heading.toFixed(1)}°, Target: ${bearing.toFixed(1)}°)`);
+
+      await page.evaluate(({ panoId, heading }) => moveToPano(panoId, heading), {
+        panoId: bestLink.pano,
+        heading: bestLink.heading
+      });
+
+      // Wait for network to be idle (tiles loaded)
+      await page.waitForLoadState('networkidle');
+      // Additional safety wait
+      await page.waitForTimeout(STEP_DELAY);
+    } else {
+      log.fatal(`TEMP EXIT: No Best Link`); //ZZZ better error message
+      process.exit(1);
+    }
+    // ... //
+
+    currentStep++;
+    saveState(fs, project.stateFile, currentStep, currentPosition); // save current position but starting at the next step
+
+    //roadTripping = false;
+  }
+  return true;
+}
+
+async function oldrun(project, { fs = realFs, page = null } = {}) {
   // Navigation Loop
   let panoHistory = [];
-  let stuckCount = 0; // Track how many times we've skipped without moving
   let lastImageDate = null; // Track image date to detect backwards jumps
   let stepsSinceAgeCheck = 0; // Track steps since last age check to avoid checking too frequently
   let lastCapturedPano = null; // To avoid processing the same pano twice (e.g. when just advancing waypoints)
@@ -181,15 +263,26 @@ async function run(route) {
   Loop:
 
   */
-  const page = await setupPage();
+  if (!page) { page = await setupViewport(fs); }
+  const route = project.route;
 
   let run = true;
   while (run) { //step < route.length
 
 // 0. load the state ----------------------------------------------------------
-    const state = loadState(fs, STATE_FILE);
-    let step = state.lastStep;
-    let currentPos = state.lastPano ? { pano: state.lastPano, lat: state.lastLat, lng: state.lastLng } : { pano: "default", lat: route[step].lat, lng: route[step].lng };
+    const state = loadState(fs, project.stateFile);
+    let step = state.step;
+    let currentPos = state.pano ? {
+      pano: state.pano,
+      lat: state.lat,
+      lng: state.lng,
+      bearing: state.bearing
+    } : {
+      pano: "default",
+      lat: route[step].lat,
+      lng: route[step].lng,
+      bearing: 0
+    };
 
     log.info(`Navigating from point ${step}: ${route[step].lat}, ${route[step].lng} - ${route.length - step} steps remaining`);
     log.info(`Current Position: pano: ${currentPos.pano}) lat: ${currentPos.lat}, lng: ${currentPos.lng}`);
@@ -197,21 +290,21 @@ async function run(route) {
 // 1. Get bearing from current to next point ----------------------------------
     const nextPoint = route[step + 1];
     log.info(`Targeting point ${step + 1}: ${nextPoint.lat}, ${nextPoint.lng}`);
-    // ZZZ bearing will be 0 on last point - maybe keep previous bearing? state.lastBearing?
+    // ZZZ bearing will be 0 on last point - maybe keep previous bearing? state.bearing?
     const bearing = nextPoint ? calculateBearing(route[step].lat, route[step].lng, nextPoint.lat, nextPoint.lng) : 0;
 
 // 2. Init the panorama with the current point + bearing ----------------------
-    await page.evaluate(({ lat, lng, heading, panoId }) => initPanorama(lat, lng, heading, panoId),
-      { lat: state.lastLat, lng: state.lastLng, heading: bearing, panoId: state.lastPano });
+    await page.evaluate(({ lat, lng, heading, pano }) => initPanorama(lat, lng, heading, pano),
+      { lat: state.lat, lng: state.lng, heading: bearing, pano: state.pano });
 
 // 3. Make sure the pano is stable (stable position, pano and links are loaded)
     let links = null;
    ({ currentPos, links } = await waitForStablePanorama(page));
 
 // 4. Take a screenshot -------------------------------------------------------
-    if (state.lastPano) {
+    if (state.pano) {
       // Capture  a screenshot if the state has a panoId
-      await captureScreenshot(page, currentPos);
+      await captureScreenshot(project.imagePath, page, currentPos);
     }
 
 // 5. Move towards the next point --------------------------------------------
@@ -224,7 +317,7 @@ async function run(route) {
       if (distToNextStep < 25) { // Threshold for reaching a route point
         log.info(`✓ Reached target point ${step}`);
         step++;
-        saveState(fs, STATE_FILE, step, currentPos); // save current position but starting at the next step
+        saveState(fs, project.stateFile, step, currentPos); // save current position but starting at the next step
 
         processedWaypoint = true;
       } else {
@@ -255,7 +348,7 @@ async function run(route) {
       // Additional safety wait
       await page.waitForTimeout(STEP_DELAY);
     } else {
-      log.fatal(`NO BEST LINK`); //ZZZ better error message
+      log.fatal(`TEMP EXIT: No Best Link`); //ZZZ better error message
       process.exit(1);
     }
 
@@ -264,7 +357,7 @@ async function run(route) {
     lastImageDate = currentPos.lastImageDate;
 
 // 7. Save the state ------------------------------------------------------
-    saveState(fs, STATE_FILE, step, currentPos); // save current position but starting at the next step
+    saveState(fs, project.stateFile, step, currentPos); // save current position but starting at the next step
 
 //------------
     // Only if we haven't processed this pano already (e.g. if we just advanced a waypoint)
@@ -284,43 +377,49 @@ async function run(route) {
       if (MIN_IMAGE_YEAR > 0 && currentPos.imageDate) {
         const imageYear = new Date(currentPos.imageDate).getFullYear();
         if (imageYear < MIN_IMAGE_YEAR) {
-          log.warn(`Image too old: ${imageYear} < ${MIN_IMAGE_YEAR}, skipping...`);
-          // We don't exit, but we treat this as a "stuck" case if we can't move?
-          // Actually, original code just incremented stuckCount.
-          // We'll let the movement logic handle it, but log it here.
-          stuckCount++;
+          log.error(`TEMP EXIT: Image too old: ${imageYear} < ${MIN_IMAGE_YEAR}`);
+          process.exit(1);
         }
       }
 
-      saveState(fs, STATE_FILE, step, currentPos);
+      saveState(fs, project.stateFile, step, currentPos);
       lastCapturedPano = currentPos.pano;
     }
   }
 }
 
-async function main() {
+async function main({ fs = realFs, project } = {}) {
   const PROJECT_NAME = process.argv[2];
   if (!PROJECT_NAME) {
     console.error("Please provide a project name: node navigator/index.js  <project-name>");
     process.exit(1);
   }
+  dotenv.config();
 
   const API_KEY = process.env.GOOGLE_MAPS_API_KEY;
   if (!API_KEY) {
     throw new Error('GOOGLE_MAPS_API_KEY not found in .env file!');
   }
 
-  PROJECT_DIR = fileURLToPath(new URL(`../projects/${PROJECT_NAME}/`, import.meta.url));
+  if (!project) {
+    const rootPath = fileURLToPath(new URL(`../projects/${PROJECT_NAME}/`, import.meta.url))
+    project = {
+      name: PROJECT_NAME,
+      rootPath: rootPath,
+      imagePath: path.join(rootPath, 'images'),
+      routeFile: path.join(rootPath, 'route.json'),
+      stateFile: path.join(rootPath, 'navigator_state.json')
+    };
+  }
+  // project.imagePath = path.join(rootPath, 'images');
+  // project.routeFile = path.join(rootPath, 'route.json');
+  // project.stateFile = path.join(rootPath, 'navigator_state.json');
 
-  if (!fs.existsSync(PROJECT_DIR)) {
-    fs.mkdirSync(PROJECT_DIR, { recursive: true });
+  if (!fs.existsSync(project.rootPath)) {
+    fs.mkdirSync(project.rootPath, { recursive: true });
   }
 
-  IMAGES_DIR = path.join(PROJECT_DIR, 'images');
-  ROUTE_FILE = path.join(PROJECT_DIR, 'route.json');
-  STATE_FILE = path.join(PROJECT_DIR, 'navigator_state.json');
-
-  const logFile = fs.createWriteStream(path.join(PROJECT_DIR, 'navigator.log'), { flags: 'a' });
+  const logFile = fs.createWriteStream(path.join(project.rootPath, 'navigator.log'), { flags: 'a' });
   log = new Signale({
     stream: [process.stdout, logFile]
   });
@@ -336,16 +435,17 @@ async function main() {
     process.exit(1);
   });
 
-  if (!fs.existsSync(ROUTE_FILE)) {
-    log.fatal(`route.json not found in project ${PROJECT_DIR}! Please export a route and place it there.`);
+  if (!fs.existsSync(project.routeFile)) {
+    log.fatal(`route.json not found in project ${project.rootPath}! Please export a route and place it there.`);
     process.exit(1);
   }
-  const route = JSON.parse(fs.readFileSync(ROUTE_FILE, 'utf-8'));
-  log.info(`Loaded route with ${route.length} waypoints`);
+  project.route = JSON.parse(fs.readFileSync(project.routeFile, 'utf-8'));
 
-  if (!fs.existsSync(IMAGES_DIR)) {
-    log.info(`Creating images directory: ${IMAGES_DIR}`);
-    fs.mkdirSync(IMAGES_DIR, { recursive: true });
+  log.info(`Loaded route with ${project.route.length} waypoints`);
+
+  if (!fs.existsSync(project.imagePath)) {
+    log.info(`Creating images directory: ${project.imagePath}`);
+    fs.mkdirSync(project.imagePath, { recursive: true });
   }
 
   STEP_DELAY = parseInt(process.env.NAVIGATOR_STEP_DELAY || '5000', 10);
@@ -361,7 +461,8 @@ async function main() {
     log.info(`env setting: Will check for newer imagery if, after moving, the current is older than ${MAX_IMAGE_AGE_MONTHS} months`);
   }
 
-  await run(route);
+  await run(project, { fs, page: null });
+
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

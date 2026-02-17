@@ -20,7 +20,7 @@
     let panorama;
     let streetViewService;
 
-    function initPanorama(lat, lng, heading, panoId) {
+    function initPanorama(lat, lng, heading, pano) {
       // Initialize Street View Service if not already done
       if (!streetViewService) {
         streetViewService = new google.maps.StreetViewService();
@@ -45,9 +45,10 @@
 
       options.source = google.maps.StreetViewSource.GOOGLE;
 
-      if (panoId) {
+
+      if (pano) {
         // Always prioritize the specific pano ID if provided (for resuming state)
-        options.pano = panoId;
+        options.pano = pano;
       } else {
         options.position = { lat, lng };
       }
@@ -72,17 +73,20 @@
       return panorama.getLinks();
     }
 
-    function moveToPano(panoId, heading) {
-      panorama.setPano(panoId);
+    function moveToPano(pano, heading) {
+      panorama.setPano(pano);
       if (heading !== undefined) {
         panorama.setPov({ heading: heading, pitch: 0 });
       }
     }
 
     function getPosition() {
+      console.log('getting position');
       const pos = panorama.getPosition();
-      if (!pos) return null;
-
+      if (!pos) {
+        console.log('no position');
+        return null;
+      }
       let imageDate = null;
       try {
         if (typeof panorama.getImageDate === 'function') {
