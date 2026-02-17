@@ -2,6 +2,7 @@ if (!global.getPosition) global.getPosition = () => {};
 if (!global.getLinks) global.getLinks = () => [];
 if (!global.initPanorama) global.initPanorama = () => {};
 if (!global.moveToPano) global.moveToPano = () => {};
+if (!global.getPositionOfPano) global.getPositionOfPano = () => {};
 
 export const createMockPage = (overrides = {}) => ({
 evaluate: async (fn, args) => {

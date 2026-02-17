@@ -102,6 +102,26 @@
         imageDate: imageDate
       };
     }
+    async function getPositionOfPano(pano) {
+      if (!streetViewService) { return false; }
+      return new Promise((resolve) => {
+        streetViewService.getPanorama({ pano: pano }, (data, status) => {
+        if (status === 'OK' && data) {
+            const imageDate = data.imageDate ? new Date(data.imageDate).toISOString() : null;
+            let result = {
+              imageDate: imageDate,
+              lat: data.location.latLng.lat(),
+              lng: data.location.latLng.lng(),
+              links: data.links,
+              latestPano: data.time[data.time.length-1].pano
+            };
+            resolve(result);
+          } else {
+            resolve(null);
+          }
+        });
+      });
+    }
   </script>
 </body>
 </html>

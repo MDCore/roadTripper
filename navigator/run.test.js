@@ -84,28 +84,28 @@ suite('Run Logic', () => {
     });
 
     const positions = [
-      { lat: -33.91513298854008, lng: 18.42271727547654, pano: 'abc001', heading: 1 },
-      { lat: -33.91508539732771, lng: 18.42281534454334, pano: 'abc002', heading: 2 },
-      { lat: -33.91502698685937, lng: 18.42290788989344, pano: 'abc003', heading: 3 },
-      { lat: -33.91496528216284, lng: 18.42298875390379, pano: 'abc004', heading: 4 },
-      { lat: -33.91491436972964, lng: 18.42307957878923, pano: 'abc005', heading: 5 },
-      { lat: -33.91486351469865, lng: 18.42316949816615, pano: 'abc006', heading: 6 },
-      { lat: -33.91480848394482, lng: 18.42325398436959, pano: 'abc007', heading: 7 },
-      { lat: -33.91474879185342, lng: 18.42333512012157, pano: 'abc008', heading: 8 }
+      { lat: -33.91513298854008, lng: 18.42271727547654, pano: 'abc001', heading: 48 },
+      { lat: -33.91508539732771, lng: 18.42281534454334, pano: 'abc002', heading: 48 },
+      { lat: -33.91502698685937, lng: 18.42290788989344, pano: 'abc003', heading: 48 },
+      { lat: -33.91496528216284, lng: 18.42298875390379, pano: 'abc004', heading: 48 },
+      { lat: -33.91491436972964, lng: 18.42307957878923, pano: 'abc005', heading: 48 },
+      { lat: -33.91486351469865, lng: 18.42316949816615, pano: 'abc006', heading: 48 },
+      { lat: -33.91480848394482, lng: 18.42325398436959, pano: 'abc007', heading: 48 },
+      { lat: -33.91474879185342, lng: 18.42333512012157, pano: 'abc008', heading: 48 }
     ];
     mockPosition(test, () => { return positions.shift(); });
 
-    const links = [{
-      description: 'M62',
-      heading: 48.866547,
-      pano: 'abc002'
-    },
-    {
-      description: 'M62',
-      heading: 228.55037,
-      pano: '8U_5R3p7eha-MmtxGxukTg'
-    }];
-    mockLinks(test, () => { return links; });
+    const links = [
+      [{ heading: 48, pano: 'abc002' }],
+      [{ heading: 48, pano: 'abc003' }, { heading: 228, pano: 'abc001' }],
+      [{ heading: 48, pano: 'abc004' }, { heading: 228, pano: 'abc002' }],
+      [{ heading: 48, pano: 'abc005' }, { heading: 228, pano: 'abc003' }],
+      [{ heading: 48, pano: 'abc006' }, { heading: 228, pano: 'abc004' }],
+      [{ heading: 48, pano: 'abc007' }, { heading: 228, pano: 'abc005' }],
+      [{ heading: 48, pano: 'abc008' }, { heading: 228, pano: 'abc006' }],
+      [{ heading: 48, pano: 'abc009' }, { heading: 228, pano: 'abc007' }],
+    ];
+    mockLinks(test, () => { return links.shift(); });
 
     const mockProject = createMockProject({
       route: [{"lat":-33.91512,"lng":18.42272},{"lat":-33.914570000000005,"lng":18.423450000000003}]
