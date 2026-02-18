@@ -13,24 +13,16 @@ let WIDTH, HEIGHT, STEP_DELAY, MIN_IMAGE_YEAR, MAX_IMAGE_AGE_MONTHS;
 
 
 async function captureScreenshot(imagePath, page, position) {
-  // Log image date/age if available
-  let ageStr = ' [unknown]';
-  if (position.date) {
-    const imageDate = new Date(position.date);
-    const imageYear = imageDate.getFullYear();
-    const imageMonth = imageDate.getMonth() + 1;
-    ageStr = ` [${imageYear}-${String(imageMonth).padStart(2, '0')}]`;
-  }
-
   log.info(`Capturing pano ${position.pano} at ${position.lat}, ${position.lng}`)
   //ZZZ is this necessary? await page.mouse.move(0, 0); // Move mouse out of viewport to avoid cursor artifacts
   await page.waitForTimeout(100);
 
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const filename = path.join(imagePath, `${timestamp}_${position.lat}_${position.lng} - ${position.pano}.jpg`);
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
+  const imageDate = position.date ? new Date(position.date).toISOString()  : "unknown";
+  const filename = path.join(imagePath, `${timestamp}_${position.lat}_${position.lng} - ${position.pano} [${imageDate}].jpg`);
 
   await page.screenshot({ path: filename, type: 'jpeg', quality: 90 });
-  log.info(`📷 Captured: ${path.basename(filename)}${ageStr}`);
+  log.info(`📷 Captured: ${path.basename(filename)}`);
 }
 
 // ------------------------------------------
