@@ -113,7 +113,6 @@ export async function getPanoData(page, pano, heading) {
   currentPosition.pano = newPano.pano;
   currentPosition.date = newPano.date;
   currentPosition.links = newPano.links;
-  //log.debug(newPano.times);
   return currentPosition;
 }
 
@@ -139,7 +138,6 @@ export async function run(project, { fs = realFs, page = null } = {}) {
 
     // get the heading
     let nextStep = null;
-    let heading = null;
     if (currentStep < route.length - 1) {
       nextStep = { lat: route[currentStep + 1].lat, lng: route[currentStep + 1].lng };
       currentPosition.heading = nextStep ? calculateHeading(route[currentStep].lat, route[currentStep].lng, nextStep.lat, nextStep.lng) : 0;
