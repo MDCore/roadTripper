@@ -17,9 +17,9 @@ async function captureScreenshot(imagePath, page, position) {
   //ZZZ is this necessary? await page.mouse.move(0, 0); // Move mouse out of viewport to avoid cursor artifacts
   await page.waitForTimeout(100);
 
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
-  const imageDate = position.date ? new Date(position.date).toISOString()  : "unknown";
-  const filename = path.join(imagePath, `${timestamp}_${position.lat}_${position.lng} - ${position.pano} [${imageDate}].jpg`);
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('Z')[0];
+  const imageDate = position.date ? new Date(position.date).toISOString().slice(0, 7) : "unknown";
+  const filename = path.join(imagePath, `${timestamp} ${position.lat.toFixed(6)} ${position.lng.toFixed(6)} - ${position.pano} [${imageDate}].jpg`);
 
   await page.screenshot({ path: filename, type: 'jpeg', quality: 90 });
   log.info(`📷 Captured: ${path.basename(filename)}`);
