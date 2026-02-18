@@ -17,7 +17,7 @@ async function captureScreenshot(imagePath, page, position) {
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('Z')[0];
   const imageDate = position.date ? new Date(position.date).toISOString().slice(0, 7) : "unknown";
-  const filename = path.join(imagePath, `${timestamp} ${position.lat.toFixed(6)} ${position.lng.toFixed(6)} - ${position.pano} [${imageDate}].jpg`);
+  const filename = path.join(imagePath, `${timestamp} ${position.lat.toFixed(6)} ${position.lng.toFixed(6)} ${imageDate} ${position.pano}.jpg`);
 
   await page.screenshot({ path: filename, type: 'jpeg', quality: 75 });
   log.info(`📷 Captured: ${path.basename(filename)}`);
