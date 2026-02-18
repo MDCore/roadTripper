@@ -112,6 +112,7 @@ export async function getPanoData(page, pano, heading) {
   currentPosition.heading = heading;
   currentPosition.pano = newPano.pano;
   currentPosition.date = newPano.date;
+  currentPosition.description = newPano.description;
   currentPosition.links = newPano.links;
   return currentPosition;
 }
@@ -180,7 +181,7 @@ export async function run(project, { fs = realFs, page = null } = {}) {
     if (bestLink) {
       log.info(`Checking linked pano: ${bestLink.pano} (Heading: ${bestLink.heading.toFixed(1)}°)`);
       currentPosition = await getPanoData(page, bestLink.pano, bestLink.heading);
-      log.info(`Setting new pano to ${currentPosition.pano}`);
+      log.info(`Setting new pano to ${currentPosition.pano} - ${currentPosition.description}`);
     } else {
       // reset to current position
       let preResetPano = currentPosition.pano;
