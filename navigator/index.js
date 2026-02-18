@@ -14,8 +14,6 @@ let WIDTH, HEIGHT, STEP_DELAY, MIN_IMAGE_YEAR, MAX_IMAGE_AGE_MONTHS;
 
 async function captureScreenshot(imagePath, page, position) {
   log.info(`Capturing pano ${position.pano} at ${position.lat}, ${position.lng}`)
-  //ZZZ is this necessary? await page.mouse.move(0, 0); // Move mouse out of viewport to avoid cursor artifacts
-  await page.waitForTimeout(100);
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('Z')[0];
   const imageDate = position.date ? new Date(position.date).toISOString().slice(0, 7) : "unknown";
@@ -82,7 +80,7 @@ export async function moveToPano(page, position) {
 
   // Wait for network to be idle (tiles loaded)
   await page.waitForLoadState('networkidle');
-  // Additional safety wait
+  // Additional safety wait, in case files are still loading
   await page.waitForTimeout(STEP_DELAY);
 }
 
@@ -126,6 +124,7 @@ export async function run(project, { fs = realFs, page = null } = {}) {
   let currentStep = state.step;
   let currentPosition = {
     pano: state.pano,
+    date: null,
     lat: state.lat || route[currentStep].lat,
     lng: state.lng || route[currentStep].lng,
     heading: state.heading || 1,
@@ -137,6 +136,7 @@ export async function run(project, { fs = realFs, page = null } = {}) {
 
   let roadTripping = true;
   while (roadTripping) {
+    log.log('\n')
 
     // get the heading
     let nextStep = null;
