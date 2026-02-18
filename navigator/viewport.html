@@ -114,7 +114,7 @@
               times: data.time,
               latestPano: {
                 pano: data.time[data.time.length-1].pano,
-                date: new Date(data.time[data.time.length-1].HA).toISOString()
+                date: new Date(data.time[data.time.length-1].GA).toISOString()
               }
             };
             /* Only add the latestPano description if it's different. Saves an API call */
