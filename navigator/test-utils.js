@@ -18,7 +18,7 @@ evaluate: async (fn, args) => {
 
 export const createMockFs = (overrides = {}) => ({
   existsSync: (path) => { return !!path; },
-  readFileSync: () => JSON.stringify({ lastStep: 0 }),
+  readFileSync: () => JSON.stringify({ step: 0 }),
   writeFileSync: (path, data) => { return !!path; },
   ...overrides
 });

@@ -119,7 +119,7 @@
             };
             /* Only add the latestPano description if it's different. Saves an API call */
             if (result.pano != result.latestPano.pano) {
-              const descriptionLookupData = await getPanoData(data.time[data.time.length-1].pano);
+              const descriptionLookupData = await getPanoDataV(data.time[data.time.length-1].pano);
               if (descriptionLookupData) {
                 result.latestPano.description = descriptionLookupData.description
               }

@@ -84,11 +84,11 @@ suite('Run Logic', () => {
 
   // test('3 step trip with starting state on step 2', async (test) => {
   //  const initialState = {
-  //     lastStep: 1,
-  //     lastPano: 'pano_123',
-  //     lastLat: 40.7,
-  //     lastLng: -74.0,
-  //     lastHeading: 90
+  //     step: 1,
+  //     pano: 'pano_123',
+  //     lat: 40.7,
+  //     lng: -74.0,
+  //     heading: 90
   //   };
   //   // 2. Create a spy to capture what gets "saved"
   //   let savedData = null;
@@ -121,7 +121,7 @@ suite('Run Logic', () => {
 
   //   // 4. Assert that the state was saved correctly
   //   assert.ok(savedData, 'State should have been saved');
-  //   assert.ok(savedData.lastStep > 5, 'Should have advanced past step 5');
+  //   assert.ok(savedData.step > 5, 'Should have advanced past step 5');
 
   //   test.skip();
   // });
