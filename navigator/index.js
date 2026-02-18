@@ -102,10 +102,20 @@ export async function getCurrentPositionData(page) {
 export async function getPanoData(page, pano, heading) {
   const newPano = await page.evaluate(({ pano }) => getPanoData(pano), { pano: pano });
   let currentPosition = {};
-  if (newPano.latestPano !== newPano.pano) {
-    log.warn(`Not the latest pano! Switching from to ${newPano.pano} to ${newPano.latestPano}`);
-    newPano.pano = newPano.latestPano;
-    newPano.imageDate = newPano.latestPanoDate;
+
+  if (newPano.latestPano.pano !== newPano.pano) {
+    log.warn(`Not the latest pano. Considering switching from ${newPano.pano} to ${newPano.latestPano.pano}`);
+    /*
+    So this is not the latest pano, but is the new pano still on the same road?
+    Let's check the description of the proposed new pano. If it's different, let's not switch to it.
+    */
+    if (newPano.latestPano.description != newPano.description) {
+      log.warn(`Not switching. Latest pano was a different location: ${newPano.latestPano.description} instead of ${newPano.description}`);
+    } else {
+      log.warn(`Switching from ${newPano.pano} to ${newPano.latestPano.pano}`);
+      newPano.pano = newPano.latestPano.pano;
+      newPano.date = newPano.latestPano.date;
+    }
   }
   currentPosition.lat = newPano.lat;
   currentPosition.lng = newPano.lng;

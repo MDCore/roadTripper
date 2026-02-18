@@ -109,6 +109,7 @@
               date: date,
               lat: data.location.latLng.lat(),
               lng: data.location.latLng.lng(),
+              description: data.location.shortDescription,
               pano: pano,
               links: data.links,
               times: data.time,
@@ -117,6 +118,13 @@
                 date: new Date(data.time[data.time.length-1].HA).toISOString()
               }
             };
+            /* Only add the latestPano description if it's different. Saves an API call */
+            if (result.pano != result.latestPano.pano) {
+              const descriptionLookupData = await getPanoData(data.time[data.time.length-1].pano);
+              if (descriptionLookupData) {
+                result.latestPano.description = descriptionLookupData.description
+              }
+            }
             resolve(result);
           } else {
             resolve(null);
