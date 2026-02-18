@@ -15,8 +15,8 @@ let WIDTH, HEIGHT, STEP_DELAY, MIN_IMAGE_YEAR, MAX_IMAGE_AGE_MONTHS;
 async function captureScreenshot(imagePath, page, position) {
   // Log image date/age if available
   let ageStr = ' [unknown]';
-  if (position.imageDate) {
-    const imageDate = new Date(position.imageDate);
+  if (position.date) {
+    const imageDate = new Date(position.date);
     const imageYear = imageDate.getFullYear();
     const imageMonth = imageDate.getMonth() + 1;
     ageStr = ` [${imageYear}-${String(imageMonth).padStart(2, '0')}]`;
@@ -82,7 +82,7 @@ async function initPanorama(page, currentPosition) {
     // Wait for network to be idle (tiles loaded)
   await page.waitForLoadState('networkidle');
 
-  return await getCurrentPosition(page);
+  return await getCurrentPositionData(page);
 }
 
 export async function moveToPano(page, position) {
@@ -94,13 +94,13 @@ export async function moveToPano(page, position) {
   await page.waitForTimeout(STEP_DELAY);
 }
 
-export async function getCurrentPosition(page) {
-  const result = await page.evaluate(() => getCurrentPosition());
+export async function getCurrentPositionData(page) {
+  const result = await page.evaluate(() => getCurrentPositionData());
   return result;
 }
 
-export async function getPositionOfPano(page, pano, heading) {
-  const newPano = await page.evaluate(({ pano }) => getPositionOfPano(pano), { pano: pano });
+export async function getPanoData(page, pano, heading) {
+  const newPano = await page.evaluate(({ pano }) => getPanoData(pano), { pano: pano });
   let currentPosition = {};
   if (newPano.latestPano !== newPano.pano) {
     log.warn(`Not the latest pano! Switching from to ${newPano.pano} to ${newPano.latestPano}`);
@@ -111,7 +111,7 @@ export async function getPositionOfPano(page, pano, heading) {
   currentPosition.lng = newPano.lng;
   currentPosition.heading = heading;
   currentPosition.pano = newPano.pano;
-  currentPosition.imageDate = newPano.imageDate;
+  currentPosition.date = newPano.date;
   currentPosition.links = newPano.links;
   //log.debug(newPano.times);
   return currentPosition;
@@ -176,14 +176,14 @@ export async function run(project, { fs = realFs, page = null } = {}) {
     const bestLink = getBestLink(currentPosition.links, currentPosition.heading);
     if (bestLink) {
       log.info(`Checking linked pano: ${bestLink.pano} (Heading: ${bestLink.heading.toFixed(1)}°)`);
-      currentPosition = await getPositionOfPano(page, bestLink.pano, bestLink.heading);
+      currentPosition = await getPanoData(page, bestLink.pano, bestLink.heading);
       log.info(`Setting new pano to ${currentPosition.pano}`);
     } else {
       // reset to current position
       let preResetPano = currentPosition.pano;
       log.warn(`No best link - resetting to current position ${currentPosition.lat}, ${currentPosition.lng}`)
       currentPosition = await initPanorama(page, currentPosition);
-      currentPosition = await getPositionOfPano(page, currentPosition.pano, currentPosition.heading);
+      currentPosition = await getPanoData(page, currentPosition.pano, currentPosition.heading);
       if (preResetPano === currentPosition.pano) {
         log.fatal('Reset landed on the same pano. Exiting');
         return false;

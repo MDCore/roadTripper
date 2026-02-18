@@ -56,7 +56,7 @@ export function saveState(fs, STATE_FILE, index, position) {
     lat: position.lat,
     lng: position.lng,
     heading: position.heading || 0,
-    imageDate: position.imageDate || null
+    date: position.date || null
   });
   console.log(`Saving state ${logState}`);
   fs.writeFileSync(STATE_FILE, JSON.stringify({
@@ -65,6 +65,6 @@ export function saveState(fs, STATE_FILE, index, position) {
     lat: position.lat,
     lng: position.lng,
     heading: position.heading || 0,
-    imageDate: position.imageDate || null
+    date: position.date || null
   }, null, 2));
 }

@@ -75,16 +75,16 @@
       }
     }
 
-    function getCurrentPosition() {
+    function getCurrentPositionData() {
       const pos = panorama.getPosition();
       if (!pos) {
         return null;
       }
-      let imageDate = null;
+      let date = null;
       try {
         if (typeof panorama.getImageDate === 'function') {
-          const date = panorama.getImageDate();
-          imageDate = date ? date.toISOString() : null;
+          const panoDate = panorama.getImageDate();
+          date = panoDate ? panoDate.toISOString() : null;
         }
       } catch (e) {
         console.warn('Could not get image date:', e.message);
@@ -95,25 +95,27 @@
         lng: pos.lng(),
         heading: panorama.getPov().heading,
         pano: panorama.getPano(),
-        imageDate: imageDate,
+        date: date,
         links: panorama.getLinks()
       };
     }
-    async function getPositionOfPano(pano) {
+    async function getPanoData(pano) {
       if (!streetViewService) { return false; }
       return new Promise((resolve) => {
-        streetViewService.getPanorama({ pano: pano }, (data, status) => {
+        streetViewService.getPanorama({ pano: pano }, async (data, status) => {
         if (status === 'OK' && data) {
-            const imageDate = data.imageDate ? new Date(data.imageDate).toISOString() : null;
+            const date = data.imageDate ? new Date(data.imageDate).toISOString() : null;
             let result = {
-              imageDate: imageDate,
+              date: date,
               lat: data.location.latLng.lat(),
               lng: data.location.latLng.lng(),
               pano: pano,
               links: data.links,
               times: data.time,
-              latestPano: data.time[data.time.length-1].pano,
-              latestPanoDate: new Date(data.time[data.time.length-1].HA).toISOString()
+              latestPano: {
+                pano: data.time[data.time.length-1].pano,
+                date: new Date(data.time[data.time.length-1].HA).toISOString()
+              }
             };
             resolve(result);
           } else {
