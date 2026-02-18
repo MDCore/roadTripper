@@ -9,7 +9,7 @@ import { fileURLToPath } from 'url';
 // Global variables (initialized in main or used by helpers)
 let log = new Signale({ disabled: true }); // Default to silent for tests
 
-let WIDTH, HEIGHT, STEP_DELAY, MIN_IMAGE_YEAR, MAX_IMAGE_AGE_MONTHS;
+let WIDTH, HEIGHT, STEP_DELAY, JPEG_QUALITY;
 
 
 async function captureScreenshot(imagePath, page, position) {
@@ -19,7 +19,7 @@ async function captureScreenshot(imagePath, page, position) {
   const imageDate = position.date ? new Date(position.date).toISOString().slice(0, 7) : "unknown";
   const filename = path.join(imagePath, `${timestamp} ${position.lat.toFixed(6)} ${position.lng.toFixed(6)} ${imageDate} ${position.pano}.jpg`);
 
-  await page.screenshot({ path: filename, type: 'jpeg', quality: 75 });
+  await page.screenshot({ path: filename, type: 'jpeg', quality: JPEG_QUALITY });
   log.info(`📷 Captured: ${path.basename(filename)}`);
 }
 
@@ -263,15 +263,7 @@ async function main({ fs = realFs, project } = {}) {
   STEP_DELAY = parseInt(process.env.NAVIGATOR_STEP_DELAY || '5000', 10);
   WIDTH = parseInt(process.env.NAVIGATOR_WIDTH || '1920', 10);
   HEIGHT = parseInt(process.env.NAVIGATOR_HEIGHT || '1080', 10);
-  MIN_IMAGE_YEAR = parseInt(process.env.NAVIGATOR_MIN_IMAGE_YEAR || '0', 10);
-  MAX_IMAGE_AGE_MONTHS = parseInt(process.env.NAVIGATOR_MAX_IMAGE_AGE_MONTHS || '0', 10);
-
-  if (MIN_IMAGE_YEAR > 0) {
-    log.info(`env setting: Filtering imagery older than ${MIN_IMAGE_YEAR}`);
-  }
-  if (MAX_IMAGE_AGE_MONTHS > 0) {
-    log.info(`env setting: Will check for newer imagery if, after moving, the current is older than ${MAX_IMAGE_AGE_MONTHS} months`);
-  }
+  JPEG_QUALITY = parseInt(process.env.NAVIGATOR_JPEG_QUALITY || '60', 10);
 
   await run(project, { fs, page: null });
   process.exit(0);
