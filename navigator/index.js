@@ -137,7 +137,6 @@ export async function run(project, { fs = realFs, page = null } = {}) {
   let roadTripping = true;
   while (roadTripping) {
     log.log('\n')
-
     // get the heading
     let nextStep = null;
     if (currentStep < route.length - 1) {
@@ -146,6 +145,10 @@ export async function run(project, { fs = realFs, page = null } = {}) {
     }
     if (currentPosition.pano) {
       await moveToPano(page, currentPosition);
+      // If we're running for the first time the date isn't known yet. Let's fix that.
+      if (!currentPosition.date) {
+        currentPosition = await getPanoData(page, currentPosition.pano, currentPosition.heading);
+      }
       await captureScreenshot(project.imagePath, page, currentPosition);
     }
 
