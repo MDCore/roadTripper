@@ -77,7 +77,7 @@ async function setupViewport(fs) {
 }
 
 async function initPanorama(page, currentPosition) {
-  await page.evaluate(({ lat, lng, heading, pano }) => initPanorama(lat, lng, heading, pano), { lat: currentPosition.lat, lng: currentPosition.lng, heading: currentPosition.heading, pano: currentPosition.pano });
+  await page.evaluate(({ lat, lng, heading, pano }) => initPanoramaV(lat, lng, heading, pano), { lat: currentPosition.lat, lng: currentPosition.lng, heading: currentPosition.heading, pano: currentPosition.pano });
 
     // Wait for network to be idle (tiles loaded)
   await page.waitForLoadState('networkidle');
@@ -86,7 +86,7 @@ async function initPanorama(page, currentPosition) {
 }
 
 export async function moveToPano(page, position) {
-  page.evaluate(({ pano, heading }) => moveToPano(pano, heading), { pano: position.pano, heading: position.heading });
+  page.evaluate(({ pano, heading }) => moveToPanoV(pano, heading), { pano: position.pano, heading: position.heading });
 
   // Wait for network to be idle (tiles loaded)
   await page.waitForLoadState('networkidle');
@@ -95,12 +95,12 @@ export async function moveToPano(page, position) {
 }
 
 export async function getCurrentPositionData(page) {
-  const result = await page.evaluate(() => getCurrentPositionData());
+  const result = await page.evaluate(() => getCurrentPositionDataV());
   return result;
 }
 
 export async function getPanoData(page, pano, heading) {
-  const newPano = await page.evaluate(({ pano }) => getPanoData(pano), { pano: pano });
+  const newPano = await page.evaluate(({ pano }) => getPanoDataV(pano), { pano: pano });
   let currentPosition = {};
 
   if (newPano.latestPano.pano !== newPano.pano) {

@@ -1,8 +1,7 @@
-if (!global.getPosition) global.getPosition = () => {};
-if (!global.getLinks) global.getLinks = () => [];
-if (!global.initPanorama) global.initPanorama = () => {};
-if (!global.moveToPano) global.moveToPano = () => {};
-if (!global.getPositionOfPano) global.getPositionOfPano = () => {};
+if (!global.initPanoramaV) global.initPanoramaV = () => {};
+if (!global.moveToPanoV) global.moveToPanoV = () => {};
+if (!global.getCurrentPositionDataV) global.getCurrentPositionDataV = () => {};
+if (!global.getPanoDataV) global.getPanoDataV = () => {};
 
 export const createMockPage = (overrides = {}) => ({
 evaluate: async (fn, args) => {
@@ -31,10 +30,6 @@ export const createMockProject = (overrides = {}) => ({
   ...overrides
 });
 
-export const mockPosition = (t, implementation) => {
-  t.mock.method(global, 'getPosition', implementation);
-};
-
-export const mockLinks = (t, implementation) => {
-  t.mock.method(global, 'getLinks', implementation);
+export const mockCurrentPositionData = (t, implementation) => {
+  t.mock.method(global, 'getCurrentPositionDataV', implementation);
 };

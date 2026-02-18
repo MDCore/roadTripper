@@ -1,39 +1,7 @@
 import { test, suite } from 'node:test';
 import assert from 'node:assert/strict';
-import { decideNextAction } from './lib.js';
 import { run } from './index.js';
-import { createMockPage, createMockFs, createMockProject, mockPosition, mockLinks } from './test-utils.js';
-
-suite('Navigation Logic', () => {
-  const dummyRoute = [
-    { lat: 40.7128, lng: -74.0060 }, // Start
-    { lat: 40.7130, lng: -74.0060 }  // Target (nearby)
-  ];
-
-  test('should switch to NEXT_WAYPOINT when close enough', () => {
-    const currentPos = { lat: 40.7129, lng: -74.0060 }; // Very close
-    const links = [];
-
-    const decision = decideNextAction(currentPos, 0, dummyRoute, links);
-
-    assert.equal(decision.action, 'NEXT_WAYPOINT');
-  });
-
-  test('should MOVE to best link when far away', () => {
-    const currentPos = { lat: 40.0000, lng: -74.0000 }; // Far away
-    const links = [
-      { heading: 0, pano: 'correct-pano' },   // North
-      { heading: 180, pano: 'wrong-pano' }    // South
-    ];
-    // Target is North relative to currentPos
-
-    const decision = decideNextAction(currentPos, 0, dummyRoute, links);
-
-    assert.equal(decision.action, 'MOVE');
-    assert.equal(decision.link.pano, 'correct-pano');
-  });
-
-});
+import { createMockPage, createMockFs, createMockProject, mockCurrentPositionData } from './test-utils.js';
 
 suite('Run Logic', () => {
 
@@ -56,7 +24,7 @@ suite('Run Logic', () => {
       { lat: -33.9, lng: 18.42, pano: 'abc123', heading: 25 }
     ];
 
-    mockPosition(test, () => {
+    mockCurrentPositionData(test, () => {
       return positions.shift();
     });
 
@@ -93,7 +61,7 @@ suite('Run Logic', () => {
       { lat: -33.91480848394482, lng: 18.42325398436959, pano: 'abc007', heading: 48 },
       { lat: -33.91474879185342, lng: 18.42333512012157, pano: 'abc008', heading: 48 }
     ];
-    mockPosition(test, () => { return positions.shift(); });
+    mockCurrentPositionData(test, () => { return positions.shift(); });
 
     const links = [
       [{ heading: 48, pano: 'abc002' }],
@@ -105,7 +73,6 @@ suite('Run Logic', () => {
       [{ heading: 48, pano: 'abc008' }, { heading: 228, pano: 'abc006' }],
       [{ heading: 48, pano: 'abc009' }, { heading: 228, pano: 'abc007' }],
     ];
-    mockLinks(test, () => { return links.shift(); });
 
     const mockProject = createMockProject({
       route: [{"lat":-33.91512,"lng":18.42272},{"lat":-33.914570000000005,"lng":18.423450000000003}]
