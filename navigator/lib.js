@@ -68,25 +68,3 @@ export function saveState(fs, STATE_FILE, index, position) {
     imageDate: position.imageDate || null
   }, null, 2));
 }
-
-export function decideNextAction(positionition, targetStep, route, links) {
-  const nextPoint = route[targetStep + 1];
-  if (!nextPoint) return { action: 'FINISH' };
-
-  const dist = calculateDistance(positionition.lat, positionition.lng, nextPoint.lat, nextPoint.lng);
-
-  // Logic: Reached waypoint?
-  if (dist < 25) {
-    return { action: 'NEXT_WAYPOINT', distance: dist };
-  }
-
-  // Logic: Move to next pano
-  const heading = calculateHeading(positionition.lat, positionition.lng, nextPoint.lat, nextPoint.lng);
-  const bestLink = getBestLink(links, heading);
-
-  if (bestLink) {
-    return { action: 'MOVE', link: bestLink, heading: heading, distance: dist };
-  }
-
-  return { action: 'NO_LINK', heading: heading, distance: dist };
-}

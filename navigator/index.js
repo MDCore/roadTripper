@@ -3,7 +3,7 @@ import * as realFs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
 import signale from 'signale'; const { Signale } = signale;
-import { calculateHeading, calculateDistance, getBestLink, loadState, saveState, decideNextAction } from './lib.js';
+import { calculateHeading, calculateDistance, getBestLink, loadState, saveState } from './lib.js';
 import { fileURLToPath } from 'url';
 
 // Global variables (initialized in main or used by helpers)
@@ -173,7 +173,7 @@ export async function run(project, { fs = realFs, page = null } = {}) {
       continue;
     }
 
-    const bestLink = getBestLink(currentPosition.links, heading);
+    const bestLink = getBestLink(currentPosition.links, currentPosition.heading);
     if (bestLink) {
       log.info(`Checking linked pano: ${bestLink.pano} (Heading: ${bestLink.heading.toFixed(1)}°)`);
       currentPosition = await getPositionOfPano(page, bestLink.pano, bestLink.heading);
