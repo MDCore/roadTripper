@@ -3,11 +3,11 @@ import { chromium } from 'playwright';
 import * as realFs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
-import signale from 'signale'; const { Signale } = signale;
+import { createConsola } from 'consola';
 import { calculateHeading, calculateDistance, getBestLink, loadState, saveState } from './lib.js';
 
 // Global variables (initialized in main or used by helpers)
-let log = new Signale({ disabled: true }); // Default to silent for tests
+let log = createConsola({ level: 0 }); // Default to silent for tests
 
 let WIDTH, HEIGHT, STEP_DELAY, JPEG_QUALITY;
 
@@ -232,8 +232,24 @@ async function main({ fs = realFs, project } = {}) {
   }
 
   const logFile = fs.createWriteStream(path.join(project.projectPath, 'navigator.log'), { flags: 'a' });
-  log = new Signale({
-    stream: [process.stdout, logFile]
+  const fileReporter = {
+    log(logObj) {
+      const msg = logObj.args.map(a =>
+        typeof a === 'object' ? JSON.stringify(a) : String(a)
+      ).join(' ');
+      logFile.write(msg + '\n');
+    }
+  };
+  log = createConsola({
+    reporters: [fileReporter]
+  });
+  log.addReporter({
+    log: (logObj) => {
+      const msg = logObj.args.map(a =>
+        typeof a === 'object' ? JSON.stringify(a) : String(a)
+      ).join(' ');
+      console.log(msg);
+    }
   });
 
   // Catch-all for Sync errors
