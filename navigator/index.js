@@ -167,7 +167,7 @@ export async function run(project, { fs = realFs, page = null } = {}) {
       currentStep++;
       log.info(`Reached target step ${currentStep} resetting to ${currentPosition.lat}, ${currentPosition.lng})`);
       currentPosition = await initPanorama(page, currentPosition);
-      currentPosition = await getPositionOfPano(page, currentPosition.pano, currentPosition.heading);
+      currentPosition = await getPanoData(page, currentPosition.pano, currentPosition.heading);
       continue;
     } else if (!currentPosition.pano) {
       log.info(`Finding nearest pano`);
