@@ -102,7 +102,7 @@
       if (!streetViewService) { return false; }
       return new Promise((resolve) => {
         streetViewService.getPanorama({ pano: pano }, async (data, status) => {
-        if (status === 'OK' && data) {
+          if (status === 'OK' && data) {
             const date = data.imageDate ? new Date(data.imageDate).toISOString().split('T')[0] : null;
             let result = {
               date: date,
@@ -112,17 +112,27 @@
               pano: pano,
               links: data.links,
               times: data.time,
-              latestPano: {
-                pano: data.time[data.time.length-1].pano,
-                date: new Date(data.time[data.time.length-1].GA).toISOString().split('T')[0]
-              }
+              latestPano: null
             };
-            /* Only add the latestPano description if it's different. Saves an API call */
-            if (result.pano != result.latestPano.pano) {
-              const descriptionLookupData = await getPanoDataV(data.time[data.time.length-1].pano);
-              if (descriptionLookupData) {
-                result.latestPano.description = descriptionLookupData.description
+            if (data.time && data.time.length > 0) {
+              const latestTime = data.time[data.time.length - 1];
+              result.latestPano = {
+                pano: latestTime.pano,
+                date: latestTime.GA ? new Date(latestTime.GA).toISOString().split('T')[0] : null
+              };
+              /* Only add the latestPano description if it's different. Saves an API call */
+              if (result.pano != result.latestPano.pano) {
+                try {
+                  const descriptionLookupData = await getPanoDataV(data.time[data.time.length - 1].pano);
+                  if (descriptionLookupData) {
+                    result.latestPano.description = descriptionLookupData.description;
+                  }
+                } catch (e) {
+                  console.warn('Could not get latestPano description:', e.message);
+                }
               }
+            } else {
+              result.latestPano = { pano: pano, date: date };
             }
             resolve(result);
           } else {

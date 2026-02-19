@@ -84,7 +84,7 @@ async function initPanorama(page, currentPosition) {
 }
 
 export async function moveToPano(page, position) {
-  page.evaluate(({ pano, heading }) => moveToPanoV(pano, heading), { pano: position.pano, heading: position.heading });
+  await page.evaluate(({ pano, heading }) => moveToPanoV(pano, heading), { pano: position.pano, heading: position.heading });
 
   // Wait for network to be idle (tiles loaded)
   await page.waitForLoadState('networkidle');
