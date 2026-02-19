@@ -245,12 +245,15 @@ async function main({ fs = realFs, project } = {}) {
 
   log.wrapStd();
 
+  log.level = 3; // Show info and above
+
   log.addReporter({
     log(logObj) {
+      const timestamp = logObj.date ? new Date(logObj.date).toISOString() : '';
       const msg = typeof logObj.args[0] === 'object'
         ? JSON.stringify(logObj.args)
         : logObj.args.join(' ');
-      logFile.write(msg + '\n');
+      logFile.write(`${timestamp} ${msg}\n`);
     }
   });
 
