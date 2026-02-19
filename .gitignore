@@ -15,10 +15,12 @@ picker/dist/
 
 # Project-specific
 projects/
-route.json
+todo.md
 
-# Gemini/OpenSpec
+# AI tools
 .gemini/
+.planning
+.opencode
 openspec/
 agents.md
 GEMINI.md
