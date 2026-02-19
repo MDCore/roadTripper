@@ -207,7 +207,7 @@ async function main({ fs = realFs, project } = {}) {
     console.error("Please provide a project path: node navigator/index.js <path>");
     process.exit(1);
   }
-  dotenv.config();
+  dotenv.config({ quiet: true });
 
   const API_KEY = process.env.GOOGLE_MAPS_API_KEY;
   if (!API_KEY) {
