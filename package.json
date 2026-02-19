@@ -8,6 +8,9 @@
     "test": "node --test navigator/*.test.js",
     "lint": "eslint ."
   },
+  "bin": {
+    "roadtripper": "./navigator/index.js"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/MDCore/roadTripper.git"

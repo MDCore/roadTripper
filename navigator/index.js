@@ -1,10 +1,10 @@
+#!/usr/bin/env node
 import { chromium } from 'playwright';
 import * as realFs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
 import signale from 'signale'; const { Signale } = signale;
 import { calculateHeading, calculateDistance, getBestLink, loadState, saveState } from './lib.js';
-import { fileURLToPath } from 'url';
 
 // Global variables (initialized in main or used by helpers)
 let log = new Signale({ disabled: true }); // Default to silent for tests
@@ -269,6 +269,4 @@ async function main({ fs = realFs, project } = {}) {
   process.exit(0);
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  main();
-}
+main();

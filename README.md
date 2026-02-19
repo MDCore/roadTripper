@@ -41,7 +41,8 @@ npm run dev
 ### 3. Run the Navigator
 Follow the route and capture images by providing the project path:
 ```bash
-node navigator/index.js ./projects/N2/
+npm link
+roadtripper ./projects/N2/
 ```
 
 The script will follow the route and save screenshots to `<project-path>/images/`.
