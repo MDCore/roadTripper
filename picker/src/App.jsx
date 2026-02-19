@@ -279,7 +279,7 @@ function App() {
           <MarkerF
             position={navigatorPosition}
             label="NAV"
-            icon="http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+            icon="https://maps.google.com/mapfiles/ms/icons/blue-dot.png"
             draggable={true}
             onDragStart={onNavigatorDragStart}
             onDragEnd={onNavigatorDragEnd}
