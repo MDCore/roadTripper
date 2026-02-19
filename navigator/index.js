@@ -35,7 +35,12 @@ async function setupViewport(fs) {
   });
 
   // Forward browser logs to terminal and log file
-  page.on('console', msg => log.info(`PAGE LOG: ${msg.text()}`));
+  page.on('console', msg => {
+    if (msg.text().includes('Google Maps JavaScript API has been loaded directly')) {
+      return;
+    }
+    log.info(`Viewport log: ${msg.text()}`);
+  });
 
   // Log failed requests with URLs
   page.on('requestfailed', request => {
