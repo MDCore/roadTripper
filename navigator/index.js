@@ -202,9 +202,9 @@ export async function run(project, { fs = realFs, page = null } = {}) {
 }
 
 async function main({ fs = realFs, project } = {}) {
-  const PROJECT_NAME = process.argv[2];
-  if (!PROJECT_NAME) {
-    console.error("Please provide a project name: node navigator/index.js  <project-name>");
+  let projectPath = process.argv[2];
+  if (!projectPath) {
+    console.error("Please provide a project path: node navigator/index.js <path>");
     process.exit(1);
   }
   dotenv.config();
@@ -215,24 +215,23 @@ async function main({ fs = realFs, project } = {}) {
   }
 
   if (!project) {
-    const rootPath = fileURLToPath(new URL(`../projects/${PROJECT_NAME}/`, import.meta.url))
+    projectPath = projectPath.endsWith('/') ? projectPath : projectPath + '/';
+    let projectName = path.basename(projectPath.slice(0, -1));
     project = {
-      name: PROJECT_NAME,
-      rootPath: rootPath,
-      imagePath: path.join(rootPath, 'images'),
-      routeFile: path.join(rootPath, 'route.json'),
-      stateFile: path.join(rootPath, 'navigator_state.json')
+      name: projectName,
+      projectPath: projectPath,
+      imagePath: path.join(projectPath, 'images'),
+      routeFile: path.join(projectPath, 'route.json'),
+      stateFile: path.join(projectPath, 'navigator_state.json')
     };
   }
-  // project.imagePath = path.join(rootPath, 'images');
-  // project.routeFile = path.join(rootPath, 'route.json');
-  // project.stateFile = path.join(rootPath, 'navigator_state.json');
 
-  if (!fs.existsSync(project.rootPath)) {
-    fs.mkdirSync(project.rootPath, { recursive: true });
+  if (!fs.existsSync(project.projectPath)) {
+    console.error(`Project directory does not exist: ${project.projectPath}`);
+    process.exit(1);
   }
 
-  const logFile = fs.createWriteStream(path.join(project.rootPath, 'navigator.log'), { flags: 'a' });
+  const logFile = fs.createWriteStream(path.join(project.projectPath, 'navigator.log'), { flags: 'a' });
   log = new Signale({
     stream: [process.stdout, logFile]
   });
@@ -249,7 +248,7 @@ async function main({ fs = realFs, project } = {}) {
   });
 
   if (!fs.existsSync(project.routeFile)) {
-    log.fatal(`route.json not found in project ${project.rootPath}! Please export a route and place it there.`);
+    log.fatal(`route.json not found in project ${project.projectPath}! Please export a route and place it there.`);
     process.exit(1);
   }
   project.route = JSON.parse(fs.readFileSync(project.routeFile, 'utf-8'));
