@@ -240,35 +240,16 @@ async function main({ fs = realFs, project } = {}) {
   }
 
   const logFile = fs.createWriteStream(path.join(project.projectPath, 'navigator.log'), { flags: 'a' });
-  const fileReporter = {
+
+  log.wrapStd();
+
+  log.addReporter({
     log(logObj) {
-      const msg = logObj.args.map(a =>
-        typeof a === 'object' ? JSON.stringify(a) : String(a)
-      ).join(' ');
+      const msg = typeof logObj.args[0] === 'object'
+        ? JSON.stringify(logObj.args)
+        : logObj.args.join(' ');
       logFile.write(msg + '\n');
     }
-  };
-  log = createConsola({
-    reporters: [fileReporter]
-  });
-  log.addReporter({
-    log: (logObj) => {
-      const msg = logObj.args.map(a =>
-        typeof a === 'object' ? JSON.stringify(a) : String(a)
-      ).join(' ');
-      console.log(msg);
-    }
-  });
-
-  // Catch-all for Sync errors
-  process.on('uncaughtException', (err) => {
-    log.fatal('Uncaught Exception:', err);
-    process.exit(1);
-  });
-  // Catch-all for Async errors
-  process.on('unhandledRejection', (reason) => {
-    log.fatal('Unhandled Rejection:', reason);
-    process.exit(1);
   });
 
   if (!fs.existsSync(project.routeFile)) {
