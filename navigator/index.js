@@ -39,6 +39,9 @@ async function setupViewport(fs) {
 
   // Log failed requests with URLs
   page.on('requestfailed', request => {
+    if (request.url().includes('maps.gstatic.com')) {
+      return;
+    }
     log.error(`FAILED REQUEST: ${request.url()} - ${request.failure().errorText}`);
   });
 
