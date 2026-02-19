@@ -122,6 +122,7 @@ export async function getPanoData(page, pano, heading) {
   currentPosition.date = newPano.date;
   currentPosition.description = newPano.description;
   currentPosition.links = newPano.links;
+  currentPosition.history = newPano.times;
   return currentPosition;
 }
 
@@ -130,15 +131,16 @@ export async function run(project, { fs = realFs, page = null } = {}) {
   const route = project.route;
   const state = loadState(fs, project.stateFile);
 
-  let currentStep = state.step;
+  let currentStep = state.position.step;
   let currentPosition = {
-    pano: state.pano,
+    pano: state.position.pano,
     date: null,
-    lat: state.lat || route[currentStep].lat,
-    lng: state.lng || route[currentStep].lng,
-    heading: state.heading || 1,
+    lat: state.position.lat || route[currentStep].lat,
+    lng: state.position.lng || route[currentStep].lng,
+    heading: state.position.heading || 1,
     links: null
   };
+  let routeState = state.route || { badPanos: [] };
 
   if (!page) { page = await setupViewport(fs); }
   currentPosition = await initPanorama(page, currentPosition);
@@ -204,7 +206,7 @@ export async function run(project, { fs = realFs, page = null } = {}) {
       continue;
     }
 
-    saveState(fs, project.stateFile, currentStep, currentPosition); // save current position but starting at the next step
+    saveState(fs, project.stateFile, currentStep, currentPosition, routeState); // save current position but starting at the next step
   }
   return true;
 }

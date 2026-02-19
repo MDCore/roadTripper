@@ -46,25 +46,24 @@ export function loadState(fs, STATE_FILE) {
       console.warn('Warning: Could not parse state file. Starting from scratch.');
     }
   }
-  return { "step": 0 }
+  return {"position": {"step": 0}, "route": {"badPanos": []}};
 }
 
-export function saveState(fs, STATE_FILE, index, position) {
-  const logState = JSON.stringify({
-    step: index,
-    pano: position.pano,
-    lat: position.lat,
-    lng: position.lng,
-    heading: position.heading || 0,
-    date: position.date || null
-  });
+export function saveState(fs, STATE_FILE, index, position, route) {
+  const logData = {
+    position: {
+      step: index,
+      pano: position.pano,
+      lat: position.lat,
+      lng: position.lng,
+      heading: position.heading || 0,
+      date: position.date || null
+    },
+    route: {
+      badPanos: route.badPanos || []
+    }
+  };
+  const logState = JSON.stringify(logData);
   console.log(`Saving state ${logState}`);
-  fs.writeFileSync(STATE_FILE, JSON.stringify({
-    step: index,
-    pano: position.pano,
-    lat: position.lat,
-    lng: position.lng,
-    heading: position.heading || 0,
-    date: position.date || null
-  }, null, 2));
+  fs.writeFileSync(STATE_FILE, JSON.stringify(logData, null, 2));
 }
