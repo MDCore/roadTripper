@@ -196,9 +196,6 @@ export async function run(project, {
   if (!page) { page = await setupViewport(fs); }
   if (!initializePanorama) { initializePanorama = initPanoramaEvaluator(page); }
   if (!waitForPageReady) { waitForPageReady = async () => {
-    pageTitleEvaluator(page)('idle');
-    await page.waitForLoadState('networkidle');
-
     pageTitleEvaluator(page)('step');
     await page.waitForTimeout(STEP_DELAY);
   }; }
