@@ -38,18 +38,18 @@ export function getBestLink(links, targetHeading) {
   return closestLink;
 }
 
-export function loadState(fs, STATE_FILE) {
+export function loadState(fs, STATE_FILE, log) {
   if (fs.existsSync(STATE_FILE)) {
     try {
       return JSON.parse(fs.readFileSync(STATE_FILE, 'utf-8'));
     } catch {
-      console.warn('Warning: Could not parse state file. Starting from scratch.');
+      log?.warn('Warning: Could not parse state file. Starting from scratch.');
     }
   }
   return {"position": {"step": 0}, "route": {"badPanos": []}};
 }
 
-export function saveState(fs, STATE_FILE, index, position, route) {
+export function saveState(fs, STATE_FILE, index, position, route, log) {
   const logData = {
     position: {
       step: index,
@@ -64,6 +64,6 @@ export function saveState(fs, STATE_FILE, index, position, route) {
     }
   };
   const logState = JSON.stringify(logData);
-  console.log(`Saving state ${logState}`);
+  log?.info(`Saving state ${logState}`);
   fs.writeFileSync(STATE_FILE, JSON.stringify(logData, null, 2));
 }

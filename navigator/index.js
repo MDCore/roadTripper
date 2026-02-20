@@ -181,6 +181,7 @@ export async function getPanoData(fetchPanoData, badPanos, pano, heading) {
 
 export async function run(project, {
   fs = realFs,
+  log: customLog = log,
   page = null,
   initializePanorama = null,
   waitForPageReady = null,
@@ -201,7 +202,7 @@ export async function run(project, {
   let initialized = false;
 
   const route = project.route;
-  const state = loadState(fs, project.stateFile);
+  const state = loadState(fs, project.stateFile, log);
 
   let currentStep = state.position.step;
   let currentPosition = {
@@ -261,7 +262,7 @@ export async function run(project, {
       continue;
     }
 
-    saveState(fs, project.stateFile, currentStep, currentPosition, routeState); // save current position but starting at the next step
+    saveState(fs, project.stateFile, currentStep, currentPosition, routeState, log); // save current position but starting at the next step
   }
 
   return true;
