@@ -11,7 +11,10 @@ let log = createConsola({ level: 0 }); // Default to silent for tests
 
 let WIDTH, HEIGHT, STEP_DELAY, JPEG_QUALITY;
 
-const panoDataFetcher = (page) => (pano) => page.evaluate(({ pano }) => getPanoDataV(pano), { pano });
+const panoDataEvaluator = (page) => (pano) => page.evaluate(({ pano }) => getPanoDataV(pano), { pano });
+const getCurrentPositionEvaluator = (page) => () => page.evaluate(() => getCurrentPositionPanoV());
+const moveToPanoEvaluator = (page) => (pano, heading) => page.evaluate(({ pano, heading }) => moveToPanoV(pano, heading), { pano, heading });
+const initPanoramaEvaluator = (page) => (lat, lng, heading, pano) => page.evaluate(({ lat, lng, heading, pano }) => initPanoramaV(lat, lng, heading, pano), { lat, lng, heading, pano });
 
 async function captureScreenshot(imagePath, page, position) {
   log.info(`Capturing pano ${position.pano} at ${position.lat}, ${position.lng}`)
@@ -75,33 +78,27 @@ async function setupViewport(fs) {
   return page;
 }
 
-async function initPanorama(page, currentPosition, badPanos) {
-  await page.evaluate(({ lat, lng, heading, pano }) => initPanoramaV(lat, lng, heading, pano), { lat: currentPosition.lat, lng: currentPosition.lng, heading: currentPosition.heading, pano: currentPosition.pano });
+async function initPanorama(currentPosition, badPanos, initializePanorama, waitForPageReady, fetchCurrentPosition, fetchPanoData) {
+  await initializePanorama(currentPosition.lat, currentPosition.lng, currentPosition.heading, currentPosition.pano);
 
-  // Wait for network to be idle (tiles loaded)
-  await page.waitForLoadState('networkidle');
-  // Additional safety wait, in case files are still loading
-  await page.waitForTimeout(STEP_DELAY);
+  await waitForPageReady();
 
   /* we're calling getCurrentPositionData() here, because we may have come into initPanorama without
   a panoId. This will get the panorama data for wherever we are now, including a pano */
-  return await getCurrentPositionData(page, badPanos);
+  return await getCurrentPositionData(badPanos, fetchCurrentPosition, fetchPanoData);
 }
 
-export async function moveToPano(page, position) {
-  await page.evaluate(({ pano, heading }) => moveToPanoV(pano, heading), { pano: position.pano, heading: position.heading });
+export async function moveToPano(position, moveTo, waitForPageReady) {
+  await moveTo(position.pano, position.heading);
 
-  // Wait for network to be idle (tiles loaded)
-  await page.waitForLoadState('networkidle');
-  // Additional safety wait, in case files are still loading
-  await page.waitForTimeout(STEP_DELAY);
+  await waitForPageReady();
 }
 
 /* Get the position data from whatever position the current panorama is in */
-export async function getCurrentPositionData(page, badPanos) {
-  const pano = await page.evaluate(() => getCurrentPositionPanoV());
+export async function getCurrentPositionData(badPanos, fetchCurrentPosition, fetchPanoData) {
+  const pano = await fetchCurrentPosition();
 
-  return await getPanoData(panoDataFetcher(page), badPanos, pano.pano, pano.heading);
+  return await getPanoData(fetchPanoData, badPanos, pano.pano, pano.heading);
 }
 
 export async function chooseBestPanoAtPosition(panoData, badPanos, fetchPanoData) {
@@ -181,7 +178,23 @@ export async function getPanoData(fetchPanoData, badPanos, pano, heading) {
   return currentPosition;
 }
 
-export async function run(project, { fs = realFs, page = null } = {}) {
+export async function run(project, {
+  fs = realFs,
+  page = null,
+  initializePanorama = page ? initPanoramaEvaluator(page) : null,
+  waitForPageReady = page ? (async () => { await page.waitForLoadState('networkidle'); await page.waitForTimeout(STEP_DELAY); }) : null,
+  fetchCurrentPosition = page ? getCurrentPositionEvaluator(page) : null,
+  fetchPanoData = page ? panoDataEvaluator(page) : null,
+  moveTo = page ? moveToPanoEvaluator(page) : null
+} = {}) {
+
+  if (!page) { page = await setupViewport(fs); }
+  if (!initializePanorama) { initializePanorama = initPanoramaEvaluator(page); }
+  if (!waitForPageReady) { waitForPageReady = async () => { await page.waitForLoadState('networkidle'); await page.waitForTimeout(STEP_DELAY); }; }
+  if (!fetchCurrentPosition) { fetchCurrentPosition = getCurrentPositionEvaluator(page); }
+  if (!fetchPanoData) { fetchPanoData = panoDataEvaluator(page); }
+  if (!moveTo) { moveTo = moveToPanoEvaluator(page); }
+  let initialized = false;
 
   const route = project.route;
   const state = loadState(fs, project.stateFile);
@@ -197,9 +210,6 @@ export async function run(project, { fs = realFs, page = null } = {}) {
   };
   let routeState = state.route || { badPanos: [] };
 
-  if (!page) { page = await setupViewport(fs); }
-  let initialized = false;
-
   let roadTripping = true;
   while (roadTripping) {
     log.log('\n')
@@ -211,10 +221,10 @@ export async function run(project, { fs = realFs, page = null } = {}) {
     }
 
     if (!initialized) {
-      currentPosition = await initPanorama(page, currentPosition, routeState.badPanos);
+      currentPosition = await initPanorama(currentPosition, routeState.badPanos, initializePanorama, waitForPageReady, fetchCurrentPosition, fetchPanoData);
       initialized = true;
     } else {
-      await moveToPano(page, currentPosition);
+      await moveToPano(currentPosition, moveTo, waitForPageReady);
     }
     await captureScreenshot(project.imagePath, page, currentPosition);
 
@@ -238,17 +248,18 @@ export async function run(project, { fs = realFs, page = null } = {}) {
     const bestLink = getBestLink(currentPosition.links, currentPosition.heading);
     if (bestLink) {
       log.info(`Checking linked pano: ${bestLink.pano} (Heading: ${bestLink.heading.toFixed(1)}°)`);
-      currentPosition = await getPanoData(panoDataFetcher(page), routeState.badPanos, bestLink.pano, bestLink.heading);
+      currentPosition = await getPanoData(fetchPanoData, routeState.badPanos, bestLink.pano, bestLink.heading);
       log.info(`Setting new pano to ${currentPosition.pano} - ${currentPosition.description}`);
     } else {
       // doh! Let's mark this as a bad pano, and try the next one
       routeState.badPanos.push(currentPosition.pano);
-      currentPosition = await getCurrentPositionData(page, routeState.badPanos);
+      currentPosition = await getCurrentPositionData(routeState.badPanos, fetchCurrentPosition, fetchPanoData);
       continue;
     }
 
     saveState(fs, project.stateFile, currentStep, currentPosition, routeState); // save current position but starting at the next step
   }
+
   return true;
 }
 

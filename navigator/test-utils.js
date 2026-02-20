@@ -25,7 +25,3 @@ export const createMockProject = (overrides = {}) => ({
       imagePath: 'test/images',
   ...overrides
 });
-
-export const mockCurrentPositionData = (t, implementation) => {
-  t.mock.method(global, 'getCurrentPositionPanoV', implementation);
-};
