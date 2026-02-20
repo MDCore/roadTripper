@@ -15,7 +15,7 @@ const panoDataEvaluator = (page) => (pano) => page.evaluate(({ pano }) => getPan
 const getCurrentPositionEvaluator = (page) => () => page.evaluate(() => getCurrentPositionPanoV());
 const moveToPanoEvaluator = (page) => (pano, heading) => page.evaluate(({ pano, heading }) => moveToPanoV(pano, heading), { pano, heading });
 const initPanoramaEvaluator = (page) => (lat, lng, heading, pano) => page.evaluate(({ lat, lng, heading, pano }) => initPanoramaV(lat, lng, heading, pano), { lat, lng, heading, pano });
-const pageTitleEvaluator = (page) => (title) => page.evaluate(({ title }) => updateTitle(title), { title });
+const updatePageTitle = (page) => (title) => page.evaluate(({ title }) => updateTitle(title ), { title });
 
 async function captureScreenshot(imagePath, page, position) {
   log.info(`Capturing pano ${position.pano} at ${position.lat}, ${position.lng}`)
@@ -199,7 +199,6 @@ export async function run(project, {
 
     await page.waitForLoadState('networkidle');
 
-    pageTitleEvaluator(page)('canv');
     await page.waitForFunction(() => {
       const canvas = document.querySelector('canvas');
       if (!canvas) return false;
@@ -234,7 +233,6 @@ export async function run(project, {
       return false;
     }, { timeout: 10000 }).catch(() => {});
 
-    pageTitleEvaluator(page)('step');
     await page.waitForTimeout(STEP_DELAY);
   }; }
   if (!fetchCurrentPosition) { fetchCurrentPosition = getCurrentPositionEvaluator(page); }
@@ -246,6 +244,7 @@ export async function run(project, {
   const state = loadState(fs, project.stateFile, log);
 
   let currentStep = state.position.step;
+
   let currentPosition = {
     pano: state.position.pano,
     date: null,
@@ -258,6 +257,8 @@ export async function run(project, {
 
   let roadTripping = true;
   while (roadTripping) {
+    updatePageTitle(page)(`${currentStep} ${currentPosition.date ? currentPosition.date.slice(0, 7) : ''} ${currentPosition.description ? currentPosition.description: '' }`);
+
     log.log('\n')
     // get the heading
     let nextStep = null;
@@ -285,6 +286,7 @@ export async function run(project, {
     // Start again at next Step
     if (distToNextStep < 25) {
       currentStep++;
+
       log.info(`Reached target step ${currentStep} but NOT resetting to ${currentPosition.lat}, ${currentPosition.lng})`);
     } else if (!currentPosition.pano) {
       log.fatal(`not implemented yet!`);
