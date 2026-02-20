@@ -229,7 +229,7 @@ export async function run(project, {
     await captureScreenshot(project.imagePath, page, currentPosition);
 
     if (currentStep >= route.length - 1) {
-      log.info(`Trip complete`);
+      log.info(`\nTrip complete`);
       return true;
     }
 
