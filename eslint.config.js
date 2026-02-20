@@ -21,11 +21,13 @@ export default [
     languageOptions: {
       globals: {
         window: 'readonly',
+        document: 'readonly',
         initPanoramaV: 'readonly',
         panorama: 'readonly',
         getCurrentPositionPanoV: 'readonly',
         moveToPanoV: 'readonly',
         getPanoDataV: 'readonly',
+        updateTitle: 'readonly'
       },
     },
   },

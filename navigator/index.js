@@ -32,9 +32,9 @@ async function captureScreenshot(imagePath, page, position) {
 
 async function setupViewport(fs) {
   const browser = await chromium.launch({
-     headless: false,
-     //args: ['--auto-open-devtools-for-tabs']
-    });
+    headless: false,
+    //args: ['--auto-open-devtools-for-tabs']
+  });
   const page = await browser.newPage({
    viewport: { width: WIDTH, height: HEIGHT }
   });
