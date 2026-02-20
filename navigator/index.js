@@ -180,7 +180,6 @@ export async function getPanoData(fetchPanoData, badPanos, pano, heading) {
 
 export async function run(project, {
   fs = realFs,
-  log: customLog = log,
   page = null,
   initializePanorama = null,
   waitForPageReady = null,

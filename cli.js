@@ -17,7 +17,7 @@ program
   .name('roadtripper')
   .description('Navigate Street View and capture time-lapse screenshots')
   .version('2.0.0')
-  .showHelpAfterError(false)
+  .showHelpAfterError()
   .configureOutput({
     writeErr: (str) => {
       if (str.includes('missing required argument')) {
@@ -25,7 +25,6 @@ program
         console.error('\nUsage: roadtripper navigate <path>');
         console.error('\nExample: roadtripper navigate ./projects/N2/');
         console.error('\nRun "roadtripper --help" for more information.');
-        process.exit(1);
       } else {
         process.stderr.write(str);
       }
@@ -50,7 +49,7 @@ program
       console.log('Installing planner dependencies...');
       try {
         execSync('npm install', { cwd: plannerPath, stdio: 'inherit' });
-      } catch (e) {
+      } catch {
         console.error('Failed to install dependencies');
         process.exit(1);
       }
