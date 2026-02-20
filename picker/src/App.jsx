@@ -90,10 +90,13 @@ function App() {
 
     // Update complete navigator state for export
     setNavigatorStateData({
-      step: nearestIndex,
-      pano: null, // Reset - can't preserve Street View pano ID
-      lat: nearestWaypoint.lat,
-      lng: nearestWaypoint.lng
+      position: {
+        step: nearestIndex,
+        pano: null, // Reset - can't preserve Street View pano ID
+        lat: nearestWaypoint.lat,
+        lng: nearestWaypoint.lng
+      },
+      route: { badPanos: [] }
     });
 
     setIsDraggingMarker(false);
@@ -224,8 +227,9 @@ function App() {
               }
             } else if (file.name.includes('navigator_state.json')) {
               setNavigatorStateData(json); // Store complete state
-              if (json.lat && json.lng) {
-                setNavigatorPosition({ lat: json.lat, lng: json.lng });
+              const pos = json.position || {};
+              if (pos.lat && pos.lng) {
+                setNavigatorPosition({ lat: pos.lat, lng: pos.lng });
               }
             }
           } catch (error) {
@@ -387,8 +391,8 @@ function App() {
 
         {navigatorStateData && path && (
           <div style={{ marginTop: 10, fontSize: '14px', color: '#555' }}>
-            Navigator: <strong>Waypoint {navigatorStateData.step + 1}</strong> of {path.length}
-            {' '}({Math.round((navigatorStateData.step / path.length) * 100)}% complete)
+            Navigator: <strong>Waypoint {(navigatorStateData.position?.step ?? 0) + 1}</strong> of {path.length}
+            {' '}({Math.round(((navigatorStateData.position?.step ?? 0) / path.length) * 100)}% complete)
           </div>
         )}
 
