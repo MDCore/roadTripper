@@ -2,6 +2,7 @@
 import { chromium } from 'playwright';
 import * as realFs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { createConsola } from 'consola';
 import { calculateHeading, calculateDistance, getBestLink, loadState, saveState } from './lib.js';
@@ -331,6 +332,8 @@ async function main({ fs = realFs, project } = {}) {
   process.exit(0);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+const __filename = realFs.realpathSync(fileURLToPath(import.meta.url));
+const argv1RealPath = process.argv[1] ? realFs.realpathSync(process.argv[1]) : null;
+if (argv1RealPath === __filename) {
   main();
 }
