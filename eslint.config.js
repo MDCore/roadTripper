@@ -3,7 +3,7 @@ import globals from 'globals';
 
 export default [
   {
-    ignores: ['picker/', 'client/', 'dist/', 'node_modules/', 'projects/'],
+    ignores: ['planner/', 'client/', 'dist/', 'node_modules/', 'projects/'],
   },
   {
     files: ['**/*.js'],

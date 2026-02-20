@@ -7,9 +7,8 @@ import dotenv from 'dotenv';
 import { createConsola } from 'consola';
 import { calculateHeading, calculateDistance, getBestLink, loadState, saveState } from './lib.js';
 
-// Global variables (initialized in main or used by helpers)
+// Global variables
 let log = createConsola({ level: 0 }); // Default to silent for tests
-
 let WIDTH, HEIGHT, STEP_DELAY, JPEG_QUALITY;
 
 const panoDataEvaluator = (page) => (pano) => page.evaluate(({ pano }) => getPanoDataV(pano), { pano });
@@ -268,20 +267,12 @@ export async function run(project, {
   return true;
 }
 
-async function main({ fs = realFs, project } = {}) {
-  let projectPath = process.argv[2];
-  if (!projectPath) {
-    console.error("Please provide a project path: node navigator/index.js <path>");
-    process.exit(1);
-  }
-  dotenv.config({ quiet: true });
-
-  const API_KEY = process.env.GOOGLE_MAPS_API_KEY;
-  if (!API_KEY) {
-    throw new Error('GOOGLE_MAPS_API_KEY not found in .env file!');
-  }
-
+async function mainNavigate({ fs = realFs, project, projectPath } = {}) {
   if (!project) {
+    if (!projectPath) {
+      console.error("Please provide a project path: node navigator/index.js <path>");
+      process.exit(1);
+    }
     projectPath = projectPath.endsWith('/') ? projectPath : projectPath + '/';
     let projectName = path.basename(projectPath.slice(0, -1));
     project = {
@@ -291,6 +282,13 @@ async function main({ fs = realFs, project } = {}) {
       routeFile: path.join(projectPath, 'route.json'),
       stateFile: path.join(projectPath, 'navigator_state.json')
     };
+  }
+
+  dotenv.config({ quiet: true });
+
+  const API_KEY = process.env.GOOGLE_MAPS_API_KEY;
+  if (!API_KEY) {
+    throw new Error('GOOGLE_MAPS_API_KEY not found in .env file!');
   }
 
   if (!fs.existsSync(project.projectPath)) {
@@ -315,7 +313,7 @@ async function main({ fs = realFs, project } = {}) {
   });
 
   if (!fs.existsSync(project.routeFile)) {
-    log.fatal(`route.json not found in project ${project.projectPath}! Please export a route and place it there.`);
+    log.fatal(`route.json not found in project ${project.projectPath}! First plan a route and save it there.`);
     process.exit(1);
   }
   project.route = JSON.parse(fs.readFileSync(project.routeFile, 'utf-8'));
@@ -333,11 +331,13 @@ async function main({ fs = realFs, project } = {}) {
   JPEG_QUALITY = parseInt(process.env.NAVIGATOR_JPEG_QUALITY || '60', 10);
 
   await run(project, { fs, page: null });
-  process.exit(0);
 }
+
+export { mainNavigate };
 
 const __filename = realFs.realpathSync(fileURLToPath(import.meta.url));
 const argv1RealPath = process.argv[1] ? realFs.realpathSync(process.argv[1]) : null;
 if (argv1RealPath === __filename) {
-  main();
+  const projectPath = process.argv[2];
+  mainNavigate({ projectPath });
 }

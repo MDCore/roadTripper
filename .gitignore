@@ -7,11 +7,11 @@ Thumbs.db
 
 # Dependencies
 node_modules/
-picker/node_modules/
+planner/node_modules/
 
 # Build outputs
 dist/
-picker/dist/
+planner/dist/
 
 # Project-specific
 projects/

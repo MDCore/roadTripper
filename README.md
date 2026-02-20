@@ -22,27 +22,25 @@ A modern reconstruction of the original RoadTripper with a route-aware navigatio
 ### 1. Organize your Project
 Create a folder for your project.
 
-### 2. Generate a Route
-Use the Route Picker to define your journey:
+### 2. Plan a Route
+Use the Route Planner to define your journey:
 ```bash
-cd picker
-npm install
-npm run dev
+roadtripper plan
 ```
-1.  Open `http://localhost:5173`.
-2.  Click on the map to set a **Start** point.
-3.  Click again to set an **End** point.
-4.  Click **Calculate Route**.
-5.  Click **Export Route**. You will be prompted for a **Project Name** (e.g., `N2`).
-6.  A file named `<ProjectName>_route.json` will be downloaded.
-7.  Save this file to your project folder.
+This will install dependencies (if needed) and start the planner at `http://localhost:5173`.
+
+1.  Click on the map to set a **Start** point.
+2.  Click again to set an **End** point.
+3.  Click **Calculate Route**.
+4.  Click **Export Route**. You will be prompted for a **Project Name** (e.g., `N2`).
+5.  A file named `<ProjectName>_route.json` will be downloaded.
+6.  Save this file to your project folder.
 
 
 ### 3. Run the Navigator
 Follow the route and capture images by providing the project path:
 ```bash
-npm link
-roadtripper ./projects/N2/
+roadtripper navigate ./projects/N2/
 ```
 
 The script will follow the route and save screenshots to `<project-path>/images/`.
