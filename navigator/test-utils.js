@@ -1,8 +1,3 @@
-if (!global.initPanoramaV) global.initPanoramaV = () => {};
-if (!global.moveToPanoV) global.moveToPanoV = () => {};
-if (!global.getCurrentPositionPanoV) global.getCurrentPositionPanoV = () => {};
-if (!global.getPanoDataV) global.getPanoDataV = () => {};
-
 export const createMockPage = (overrides = {}) => ({
 evaluate: async (fn, args) => {
     if (overrides.evaluate) {
@@ -32,5 +27,5 @@ export const createMockProject = (overrides = {}) => ({
 });
 
 export const mockCurrentPositionData = (t, implementation) => {
-  t.mock.method(global, 'getCurrentPositionDataV', implementation);
+  t.mock.method(global, 'getCurrentPositionPanoV', implementation);
 };

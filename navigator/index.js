@@ -11,6 +11,7 @@ let log = createConsola({ level: 0 }); // Default to silent for tests
 
 let WIDTH, HEIGHT, STEP_DELAY, JPEG_QUALITY;
 
+const panoDataFetcher = (page) => (pano) => page.evaluate(({ pano }) => getPanoDataV(pano), { pano });
 
 async function captureScreenshot(imagePath, page, position) {
   log.info(`Capturing pano ${position.pano} at ${position.lat}, ${position.lng}`)
@@ -100,10 +101,10 @@ export async function moveToPano(page, position) {
 export async function getCurrentPositionData(page, badPanos) {
   const pano = await page.evaluate(() => getCurrentPositionPanoV());
 
-  return await getPanoData(page, badPanos, pano.pano, pano.heading);
+  return await getPanoData(panoDataFetcher(page), badPanos, pano.pano, pano.heading);
 }
 
-export async function chooseBestPanoAtPosition(page, panoData, badPanos) {
+export async function chooseBestPanoAtPosition(panoData, badPanos, fetchPanoData) {
   /* have we landed on a bad pano? Let's get the next best one */
   if (badPanos.includes(panoData.pano)) {
     log.warn(`This is a bad pano: ${panoData.pano}. Getting newest clean pano.`);
@@ -118,7 +119,7 @@ export async function chooseBestPanoAtPosition(page, panoData, badPanos) {
     let bestPanoData = {};
     for (let i = panoData.times.length - 1; i >= 0; i--) {
       log.debug(`checking pano ${i}: ${panoData.times[i].pano} on ${panoData.description} from ${panoData.times[i].GA}`);
-      let checkPanoData = await page.evaluate(({ pano }) => getPanoDataV(pano), { pano: panoData.times[i].pano});
+      let checkPanoData = await fetchPanoData(panoData.times[i].pano);
 
       if (checkPanoData.description !== panoData.description) {
         log.debug(`Description mismatch: ${panoData.description} vs ${checkPanoData.description}`)
@@ -144,7 +145,7 @@ export async function chooseBestPanoAtPosition(page, panoData, badPanos) {
       So this is not the latest pano, but is the new pano still on the same road i.e. has the same description?
       Get the latest pano so we can see its description.
     */
-    let latestPanoData = await page.evaluate(({ pano }) => getPanoDataV(pano), { pano: latestPano.pano});
+    let latestPanoData = await fetchPanoData(latestPano.pano);
 
     if (panoData.description != latestPanoData.description) {
       log.warn(`Not switching. Latest pano was a different location: ${latestPanoData.description} instead of ${panoData.description}`);
@@ -159,9 +160,9 @@ export async function chooseBestPanoAtPosition(page, panoData, badPanos) {
 }
 
 /* get position data for an arbitrary panoId */
-export async function getPanoData(page, badPanos, pano, heading) {
-  let newPanoData = await page.evaluate(({ pano }) => getPanoDataV(pano), { pano: pano });
-  newPanoData = await chooseBestPanoAtPosition(page, newPanoData, badPanos);
+export async function getPanoData(fetchPanoData, badPanos, pano, heading) {
+  let newPanoData = await fetchPanoData(pano);
+  newPanoData = await chooseBestPanoAtPosition(newPanoData, badPanos, fetchPanoData);
 
   if (!newPanoData) {
     log.fatal('Fatal: there are no good panos at this position.');
@@ -229,36 +230,21 @@ export async function run(project, { fs = realFs, page = null } = {}) {
     if (distToNextStep < 25) {
       currentStep++;
       log.info(`Reached target step ${currentStep} but NOT resetting to ${currentPosition.lat}, ${currentPosition.lng})`);
-      // currentPosition = await initPanorama(page, currentPosition);
-      // currentPosition = await getPanoData(page, currentPosition.pano, currentPosition.heading);
-      // continue;
     } else if (!currentPosition.pano) {
-      log.info(`Finding nearest pano`);
-      log.fatal(`not implemented yet!`); //ZZZ better error message
+      log.fatal(`not implemented yet!`);
       return false;
     }
 
     const bestLink = getBestLink(currentPosition.links, currentPosition.heading);
     if (bestLink) {
       log.info(`Checking linked pano: ${bestLink.pano} (Heading: ${bestLink.heading.toFixed(1)}°)`);
-      currentPosition = await getPanoData(page, routeState.badPanos, bestLink.pano, bestLink.heading);
+      currentPosition = await getPanoData(panoDataFetcher(page), routeState.badPanos, bestLink.pano, bestLink.heading);
       log.info(`Setting new pano to ${currentPosition.pano} - ${currentPosition.description}`);
     } else {
       // doh! Let's mark this as a bad pano, and try the next one
       routeState.badPanos.push(currentPosition.pano);
       currentPosition = await getCurrentPositionData(page, routeState.badPanos);
-      // currentPosition = await getPanoData(page, routeState.badPanos, bestLink.pano, bestLink.heading);
       continue;
-      // reset to current position
-      // let preResetPano = currentPosition.pano;
-      // log.warn(`No best link - resetting to current position ${currentPosition.lat}, ${currentPosition.lng}`)
-      // currentPosition = await initPanorama(page, currentPosition);
-      // currentPosition = await getPanoData(page, currentPosition.pano, currentPosition.heading);
-      // if (preResetPano === currentPosition.pano) {
-      //   log.fatal('Reset landed on the same pano. Exiting');
-      //   return false;
-      // }
-      // continue;
     }
 
     saveState(fs, project.stateFile, currentStep, currentPosition, routeState); // save current position but starting at the next step
