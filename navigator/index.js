@@ -104,15 +104,16 @@ export async function getCurrentPositionData(badPanos, fetchCurrentPosition, fet
 }
 
 export async function chooseBestPanoAtPosition(panoData, badPanos, fetchPanoData) {
-  /* have we landed on a bad pano? Let's get the next best one */
-  if (badPanos.includes(panoData.pano)) {
-    log.warn(`This is a bad pano: ${panoData.pano}. Getting newest clean pano.`);
-
     // Clean the pano history for this position
     panoData.times = panoData.times.filter(item => !badPanos.includes(item.pano));
     if (panoData.times.length === 0) {
+      log.warn(`${panoData.pano} has no good panos.`)
       return {};
     }
+
+  // have we landed on a bad pano? Let's get the next best one
+  if (badPanos.includes(panoData.pano)) {
+    log.warn(`This is a bad pano: ${panoData.pano}. Getting newest clean pano.`);
 
     // walk the panos backwards to find the newest one on the same road i.e. on has same description
     let bestPanoData = {};
@@ -137,7 +138,7 @@ export async function chooseBestPanoAtPosition(panoData, badPanos, fetchPanoData
     return bestPanoData;
   }
 
-  // So it wasn't a bad pano, but is it the latest pano?
+  // So it isn't a bad pano, but is it the latest pano?
   let latestPano = panoData.times[panoData.times.length - 1];
   if (panoData.times && panoData.pano !== latestPano.pano) {
     log.warn(`Not the latest pano. Considering switching from ${panoData.pano} to ${latestPano.pano}`);
@@ -163,11 +164,16 @@ export async function chooseBestPanoAtPosition(panoData, badPanos, fetchPanoData
 /* get position data for an arbitrary panoId */
 export async function getPanoData(fetchPanoData, badPanos, pano, heading) {
   let newPanoData = await fetchPanoData(pano);
+  if (!newPanoData) {
+    log.warn(`pano ${pano} not found`);
+    return false;
+  }
+
   newPanoData = await chooseBestPanoAtPosition(newPanoData, badPanos, fetchPanoData);
 
   if (!newPanoData) {
-    log.fatal('Fatal: there are no good panos at this position.');
-    process.exit(1);
+    log.warn(`There are no good panos at this pano ${pano}.`);
+    return false;
   }
 
   let currentPosition = {};
@@ -293,11 +299,20 @@ export async function run(project, {
       return false;
     }
 
+    // strip badPanos from links
+    currentPosition.links = currentPosition.links.filter(item => !routeState.badPanos.includes(item.pano));
+
     const bestLink = getBestLink(currentPosition.links, currentPosition.heading);
     if (bestLink) {
       log.info(`Checking linked pano: ${bestLink.pano} (Heading: ${bestLink.heading.toFixed(1)}°)`);
       currentPosition = await getPanoData(fetchPanoData, routeState.badPanos, bestLink.pano, bestLink.heading);
-      log.info(`Setting new pano to ${currentPosition.pano} - ${currentPosition.description}`);
+      if (currentPosition) {
+        log.info(`Setting new pano to ${currentPosition.pano} - ${currentPosition.description}`);
+      } else {
+        // uh oh, the best link pano doesn't exist!
+        routeState.badPanos.push(bestLink.pano);
+        currentPosition = await getCurrentPositionData(routeState.badPanos, fetchCurrentPosition, fetchPanoData);
+      }
     } else {
       // doh! Let's mark this as a bad pano, and try the next one
       routeState.badPanos.push(currentPosition.pano);
