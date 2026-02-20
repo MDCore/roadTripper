@@ -183,7 +183,10 @@ export async function run(project, {
   fs = realFs,
   page = null,
   initializePanorama = page ? initPanoramaEvaluator(page) : null,
-  waitForPageReady = page ? (async () => { await page.waitForLoadState('networkidle'); await page.waitForTimeout(STEP_DELAY); }) : null,
+  waitForPageReady = page ? (async () => {
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(STEP_DELAY);
+  }) : null,
   fetchCurrentPosition = page ? getCurrentPositionEvaluator(page) : null,
   fetchPanoData = page ? panoDataEvaluator(page) : null,
   moveTo = page ? moveToPanoEvaluator(page) : null
