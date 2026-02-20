@@ -286,11 +286,17 @@ async function mainNavigate({ fs = realFs, project, projectPath } = {}) {
     };
   }
 
-  dotenv.config({ quiet: true });
+  const configPath = path.join(project.projectPath, 'project.conf');
+  if (!fs.existsSync(configPath)) {
+    console.error(`Error: project.conf not found in ${project.projectPath}`);
+    console.error('Please create a project.conf file with your GOOGLE_MAPS_API_KEY');
+    process.exit(1);
+  }
+  dotenv.config({ path: configPath, quiet: true });
 
   const API_KEY = process.env.GOOGLE_MAPS_API_KEY;
   if (!API_KEY) {
-    throw new Error('GOOGLE_MAPS_API_KEY not found in .env file!');
+    throw new Error('GOOGLE_MAPS_API_KEY not found in project.conf!');
   }
 
   if (!fs.existsSync(project.projectPath)) {

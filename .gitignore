@@ -2,9 +2,6 @@
 .DS_Store
 Thumbs.db
 
-# Secrets
-.env
-
 # Dependencies
 node_modules/
 planner/node_modules/
