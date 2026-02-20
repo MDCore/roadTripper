@@ -19,8 +19,15 @@
   <script>
     let panorama;
     let streetViewService;
+    let titlePano = 'unknown';
+
+    function updateTitle(title, pano = null) {
+      if (pano) { titlePano = pano; }
+      document.title = title + ' ' + titlePano;
+    }
 
     function initPanoramaV(lat, lng, heading, pano) {
+      updateTitle('init', pano);
       if (!streetViewService) {
         streetViewService = new google.maps.StreetViewService();
       }
@@ -69,6 +76,7 @@
 
     function moveToPanoV(pano, heading) {
       panorama.setPano(pano);
+      updateTitle('move', pano);
       if (heading !== undefined) {
         panorama.setPov({ heading: heading, pitch: 0 });
       }

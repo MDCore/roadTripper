@@ -15,6 +15,7 @@ const panoDataEvaluator = (page) => (pano) => page.evaluate(({ pano }) => getPan
 const getCurrentPositionEvaluator = (page) => () => page.evaluate(() => getCurrentPositionPanoV());
 const moveToPanoEvaluator = (page) => (pano, heading) => page.evaluate(({ pano, heading }) => moveToPanoV(pano, heading), { pano, heading });
 const initPanoramaEvaluator = (page) => (lat, lng, heading, pano) => page.evaluate(({ lat, lng, heading, pano }) => initPanoramaV(lat, lng, heading, pano), { lat, lng, heading, pano });
+const pageTitleEvaluator = (page) => (title) => page.evaluate(({ title }) => updateTitle(title), { title });
 
 async function captureScreenshot(imagePath, page, position) {
   log.info(`Capturing pano ${position.pano} at ${position.lat}, ${position.lng}`)
@@ -89,6 +90,7 @@ async function initPanorama(currentPosition, badPanos, initializePanorama, waitF
 }
 
 export async function moveToPano(position, moveTo, waitForPageReady) {
+
   await moveTo(position.pano, position.heading);
 
   await waitForPageReady();
@@ -194,9 +196,12 @@ export async function run(project, {
   if (!page) { page = await setupViewport(fs); }
   if (!initializePanorama) { initializePanorama = initPanoramaEvaluator(page); }
   if (!waitForPageReady) { waitForPageReady = async () => {
+    pageTitleEvaluator(page)('idle');
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(STEP_DELAY); };
-  }
+
+    pageTitleEvaluator(page)('step');
+    await page.waitForTimeout(STEP_DELAY);
+  }; }
   if (!fetchCurrentPosition) { fetchCurrentPosition = getCurrentPositionEvaluator(page); }
   if (!fetchPanoData) { fetchPanoData = panoDataEvaluator(page); }
   if (!moveTo) { moveTo = moveToPanoEvaluator(page); }
