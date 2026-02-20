@@ -109,4 +109,56 @@ suite('Run Logic', () => {
     assert.equal(screenshotCount, 9);
   });
 
+  test('screenshot includes "alternate" in filename when an alternative pano is picked', async () => {
+    let capturedFilename = null;
+
+    const mockFs = createMockFs({
+      existsSync: (path) => {
+        if (!path) { path = "" }
+        if (path.endsWith('navigator_state.json')) {
+            return false;
+        }
+        return true;
+      }
+    });
+
+    const positions = [
+      { lat: -33.9, lng: 18.42, pano: 'abc123', heading: 25 }
+    ];
+
+    const fetchCurrentPosition = () => positions.shift();
+
+    const fetchPanoData = async () => ({
+      lat: -33.9, lng: 18.42, pano: 'abc123', heading: 25,
+      description: 'Main Street',
+      date: '2024-01',
+      links: [],
+      times: [{ pano: 'abc123', GA: '2024-01' }],
+      isAlternate: true
+    });
+    const waitForPageReady = async () => {};
+    const initializePanorama = async () => {};
+    const moveTo = async () => {};
+
+    const mockProject = createMockProject({
+      route: [{lat:-33.9, lng:18.42}]
+    });
+
+    await run(mockProject, {
+      page: {
+        screenshot: async (opts) => {
+          capturedFilename = opts.path;
+        }
+      },
+      fs: mockFs,
+      fetchCurrentPosition,
+      fetchPanoData,
+      waitForPageReady,
+      initializePanorama,
+      moveTo
+    });
+
+    assert.ok(capturedFilename.includes('alternate'), `Expected filename to contain "alternate", got: ${capturedFilename}`);
+  });
+
 });

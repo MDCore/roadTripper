@@ -21,7 +21,7 @@ async function captureScreenshot(imagePath, page, position) {
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('Z')[0];
   const imageDate = position.date ? new Date(position.date).toISOString().slice(0, 7) : "unknown";
-  const filename = path.join(imagePath, `${timestamp} ${position.lat.toFixed(6)} ${position.lng.toFixed(6)} ${imageDate} ${position.pano}.jpg`);
+  const filename = path.join(imagePath, `${timestamp} ${position.lat.toFixed(6)} ${position.lng.toFixed(6)} ${imageDate} ${position.pano}${position.isAlternate ? ' alternate' : ''}.jpg`);
 
   await page.screenshot({ path: filename, type: 'jpeg', quality: JPEG_QUALITY });
   log.info(`📷 Captured: ${path.basename(filename)}`);
@@ -124,6 +124,7 @@ export async function chooseBestPanoAtPosition(panoData, badPanos, fetchPanoData
       } else {
         log.debug(`Success. Pano ${i} is the best good pano.`)
         bestPanoData = checkPanoData;
+        bestPanoData.isAlternate = true;
         break;
       }
     }
@@ -148,6 +149,7 @@ export async function chooseBestPanoAtPosition(panoData, badPanos, fetchPanoData
       log.warn(`Not switching. Latest pano was a different location: ${latestPanoData.description} instead of ${panoData.description}`);
     } else {
       log.warn(`Switching from older pano ${panoData.pano} to ${latestPanoData.pano}`);
+      latestPanoData.isAlternate = true;
       return latestPanoData;
     }
   }
@@ -175,6 +177,7 @@ export async function getPanoData(fetchPanoData, badPanos, pano, heading) {
   currentPosition.description = newPanoData.description;
   currentPosition.links = newPanoData.links;
   currentPosition.panoHistory = newPanoData.times;
+  currentPosition.isAlternate = newPanoData.isAlternate || false;
   return currentPosition;
 }
 
