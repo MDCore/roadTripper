@@ -196,6 +196,44 @@ export async function run(project, {
   if (!page) { page = await setupViewport(fs); }
   if (!initializePanorama) { initializePanorama = initPanoramaEvaluator(page); }
   if (!waitForPageReady) { waitForPageReady = async () => {
+
+    await page.waitForLoadState('networkidle');
+
+    pageTitleEvaluator(page)('canv');
+    await page.waitForFunction(() => {
+      const canvas = document.querySelector('canvas');
+      if (!canvas) return false;
+
+      if (!window._canvasCheck) {
+        window._canvasCheck = { lastData: null, stableSince: null, startTime: Date.now() };
+      }
+
+      const data = canvas.toDataURL('image/jpeg', 0.05);
+      const check = window._canvasCheck;
+
+      if (data === check.lastData) {
+        if (!check.stableSince) {
+          check.stableSince = Date.now();
+        }
+
+        const stableMs = Date.now() - check.stableSince;
+        if (stableMs > 500) {
+          window._canvasCheck = null;
+          return true;
+        }
+      } else {
+        check.lastData = data;
+        check.stableSince = null;
+      }
+
+      if (Date.now() - check.startTime > 10000) {
+        window._canvasCheck = null;
+        return true;
+      }
+
+      return false;
+    }, { timeout: 10000 }).catch(() => {});
+
     pageTitleEvaluator(page)('step');
     await page.waitForTimeout(STEP_DELAY);
   }; }
@@ -335,7 +373,7 @@ async function mainNavigate({ fs = realFs, project, projectPath } = {}) {
     fs.mkdirSync(project.imagePath, { recursive: true });
   }
 
-  STEP_DELAY = parseInt(process.env.NAVIGATOR_STEP_DELAY || '5000', 10);
+  STEP_DELAY = parseInt(process.env.NAVIGATOR_STEP_DELAY || '1000', 10);
   WIDTH = parseInt(process.env.NAVIGATOR_WIDTH || '1920', 10);
   HEIGHT = parseInt(process.env.NAVIGATOR_HEIGHT || '1080', 10);
   JPEG_QUALITY = parseInt(process.env.NAVIGATOR_JPEG_QUALITY || '60', 10);

@@ -27,7 +27,7 @@ A modern reconstruction of the original RoadTripper with a route-aware navigatio
 GOOGLE_MAPS_API_KEY=your_api_key_here
 
 # Optional settings
-NAVIGATOR_STEP_DELAY=5000    # ms between steps (default: 5000)
+NAVIGATOR_STEP_DELAY=1000    # ms delay between panorama loading and screenshot (default: 1000)
 NAVIGATOR_WIDTH=1920         # Screenshot width (default: 1920)
 NAVIGATOR_HEIGHT=1080        # Screenshot height (default: 1080)
 NAVIGATOR_JPEG_QUALITY=60   # JPEG quality 0-100 (default: 60)
