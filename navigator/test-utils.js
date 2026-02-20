@@ -1,6 +1,6 @@
 if (!global.initPanoramaV) global.initPanoramaV = () => {};
 if (!global.moveToPanoV) global.moveToPanoV = () => {};
-if (!global.getCurrentPositionDataV) global.getCurrentPositionDataV = () => {};
+if (!global.getCurrentPositionPanoV) global.getCurrentPositionPanoV = () => {};
 if (!global.getPanoDataV) global.getPanoDataV = () => {};
 
 export const createMockPage = (overrides = {}) => ({

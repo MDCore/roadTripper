@@ -23,7 +23,7 @@ export default [
         window: 'readonly',
         initPanoramaV: 'readonly',
         panorama: 'readonly',
-        getCurrentPositionDataV: 'readonly',
+        getCurrentPositionPanoV: 'readonly',
         moveToPanoV: 'readonly',
         getPanoDataV: 'readonly',
       },
