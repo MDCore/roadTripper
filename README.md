@@ -55,7 +55,7 @@ This will install dependencies (if needed) and start the planner at `http://loca
 Follow the route and capture images by providing the project path:
 
 ```bash
-roadtripper navigate ./projects/N2/
+roadtripper navigate --watch ./projects/N2/
 ```
 
 The script will follow the route and save screenshots to `<project-path>/images/`.
@@ -76,4 +76,3 @@ The script will follow the route and save screenshots to `<project-path>/images/
 - if your screenshots look like they're not fully loaded, increase `NAVIGATOR_STEP_DELAY` in `project.conf`
 - You can replace `navigator_state.json` with session data from the log to restart at a point
 - If a position is taking an obviously wrong link, try adding that link's pano to badPanos in `navigator_state.json`
-- you can watch the current cli progress with this command: `feh --sort mtime --reverse --reload 1 --slideshow-delay 1 --on-last-slide hold --geometry 800x600 --scale-down /path/to/project/images`

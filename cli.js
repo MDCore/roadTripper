@@ -37,8 +37,60 @@ program
   .command('navigate <path>')
   .description('Navigate and capture screenshots for a project')
   .option('--debug', 'Open browser in debug mode with visible window and devtools')
+  .option('--watch', 'Launch feh to watch incoming images')
   .action(async (projectPath, options) => {
-    await mainNavigate({ projectPath, debug: options.debug });
+    let watchProcess = null;
+
+    const cleanup = () => {
+      if (watchProcess && !watchProcess.killed) {
+        watchProcess.kill();
+      }
+    };
+
+    process.on('SIGINT', cleanup);
+    process.on('SIGTERM', cleanup);
+
+    if (options.watch) {
+      const imagesDir = path.join(path.resolve(projectPath), 'images');
+
+      const waitForImages = () => new Promise((resolve) => {
+        const check = () => {
+          const files = realFs.readdirSync(imagesDir).filter(f => f.match(/\.(jpg|jpeg|png)$/i));
+          if (files.length > 0) {
+            resolve();
+          } else {
+            setTimeout(check, 500);
+          }
+        };
+        check();
+      });
+
+      const navigatorPromise = mainNavigate({ projectPath, debug: options.debug });
+
+      await waitForImages();
+
+      watchProcess = spawn('feh', [
+        '--sort', 'mtime',
+        '--reverse',
+        '--reload', '1',
+        '--slideshow-delay', '1',
+        '--on-last-slide', 'hold',
+        '--geometry', '1024x768',
+        '--scale-down',
+        imagesDir
+      ], {
+        detached: true,
+        stdio: 'ignore',
+        cwd: imagesDir
+      });
+      watchProcess.unref();
+
+      await navigatorPromise;
+    } else {
+      await mainNavigate({ projectPath, debug: options.debug });
+    }
+
+    cleanup();
     process.exit(0);
   });
 
