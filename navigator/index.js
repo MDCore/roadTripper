@@ -18,7 +18,6 @@ const initPanoramaEvaluator = (page) => (lat, lng, heading, pano) => page.evalua
 const updatePageTitle = (page) => (title) => page.evaluate(({ title }) => updateTitle(title ), { title });
 
 async function captureScreenshot(imagePath, page, position) {
-  log.info(`Capturing pano ${position.pano} at ${position.lat}, ${position.lng}`)
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('Z')[0];
   const imageDate = position.date ? new Date(position.date).toISOString().slice(0, 7) : "unknown";
@@ -36,7 +35,7 @@ async function setupViewport(fs) {
     //args: ['--auto-open-devtools-for-tabs']
   });
   const page = await browser.newPage({
-   viewport: { width: WIDTH, height: HEIGHT }
+    viewport: { width: WIDTH, height: HEIGHT }
   });
 
   // Forward browser logs to terminal and log file
@@ -104,12 +103,12 @@ export async function getCurrentPositionData(badPanos, fetchCurrentPosition, fet
 }
 
 export async function chooseBestPanoAtPosition(panoData, badPanos, fetchPanoData) {
-    // Clean the pano history for this position
-    panoData.times = panoData.times.filter(item => !badPanos.includes(item.pano));
-    if (panoData.times.length === 0) {
-      log.warn(`${panoData.pano} has no good panos.`)
-      return {};
-    }
+  // Clean the pano history for this position
+  panoData.times = panoData.times.filter(item => !badPanos.includes(item.pano));
+  if (panoData.times.length === 0) {
+    log.warn(`${panoData.pano} has no good panos.`)
+    return {};
+  }
 
   // have we landed on a bad pano? Let's get the next best one
   if (badPanos.includes(panoData.pano)) {
@@ -142,9 +141,9 @@ export async function chooseBestPanoAtPosition(panoData, badPanos, fetchPanoData
   let latestPano = panoData.times[panoData.times.length - 1];
   if (panoData.times && panoData.pano !== latestPano.pano) {
     log.warn(`Not the latest pano. Considering switching from ${panoData.pano} to ${latestPano.pano}`);
-     /*
-      So this is not the latest pano, but is the new pano still on the same road i.e. has the same description?
-      Get the latest pano so we can see its description.
+    /*
+    So this is not the latest pano, but is the new pano still on the same road i.e. has the same description?
+    Get the latest pano so we can see its description.
     */
     let latestPanoData = await fetchPanoData(latestPano.pano);
 
@@ -265,7 +264,6 @@ export async function run(project, {
   while (roadTripping) {
     updatePageTitle(page)(`${currentStep} ${currentPosition.date ? currentPosition.date.slice(0, 7) : ''} ${currentPosition.description ? currentPosition.description: '' }`);
 
-    log.log('\n')
     // get the heading
     let nextStep = null;
     if (currentStep < route.length - 1) {
@@ -282,7 +280,7 @@ export async function run(project, {
     await captureScreenshot(project.imagePath, page, currentPosition);
 
     if (currentStep >= route.length - 1) {
-      log.info(`\nTrip complete`);
+      log.info(`Trip complete`);
       return true;
     }
 
@@ -320,7 +318,8 @@ export async function run(project, {
       continue;
     }
 
-    saveState(fs, project.stateFile, currentStep, currentPosition, routeState, log); // save current position but starting at the next step
+    saveState(fs, project.stateFile, currentStep, currentPosition, routeState, log);
+    log.log('------------------------------------------------------------------------------')
   }
 
   return true;
@@ -371,8 +370,8 @@ async function mainNavigate({ fs = realFs, project, projectPath } = {}) {
     log(logObj) {
       const timestamp = logObj.date ? new Date(logObj.date).toISOString() : '';
       const msg = typeof logObj.args[0] === 'object'
-        ? JSON.stringify(logObj.args)
-        : logObj.args.join(' ');
+      ? JSON.stringify(logObj.args)
+      : logObj.args.join(' ');
       logFile.write(`${timestamp} ${msg}\n`);
     }
   });
