@@ -36,8 +36,9 @@ program
 program
   .command('navigate <path>')
   .description('Navigate and capture screenshots for a project')
-  .action(async (projectPath) => {
-    await mainNavigate({ projectPath });
+  .option('--debug', 'Open browser in debug mode with visible window and devtools')
+  .action(async (projectPath, options) => {
+    await mainNavigate({ projectPath, debug: options.debug });
     process.exit(0);
   });
 

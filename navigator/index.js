@@ -29,14 +29,26 @@ async function captureScreenshot(imagePath, page, position) {
 
 // ------------------------------------------
 
-async function setupViewport(fs) {
-  const browser = await chromium.launch({
-    headless: false,
-    //args: ['--auto-open-devtools-for-tabs']
-  });
-  const page = await browser.newPage({
-    viewport: { width: WIDTH, height: HEIGHT }
-  });
+async function setupViewport(fs, debug = false) {
+  let browserOptions, pageOptions;
+  if (debug) {
+    browserOptions = {
+      headless: false,
+      args: ['--auto-open-devtools-for-tabs']
+    }
+    pageOptions = {
+      viewport: { width: 1280, height: 720 }
+    }
+  } else {
+    browserOptions = {
+      headless: true
+    }
+    pageOptions = {
+      viewport: { width: WIDTH, height: HEIGHT }
+    }
+  }
+  const browser = await chromium.launch(browserOptions);
+  const page = await browser.newPage(pageOptions);
 
   // Forward browser logs to terminal and log file
   page.on('console', msg => {
@@ -195,10 +207,11 @@ export async function run(project, {
   waitForPageReady = null,
   fetchCurrentPosition = null,
   fetchPanoData = null,
-  moveTo = null
+  moveTo = null,
+  debug = false
 } = {}) {
 
-  if (!page) { page = await setupViewport(fs); }
+  if (!page) { page = await setupViewport(fs, debug); }
   if (!initializePanorama) { initializePanorama = initPanoramaEvaluator(page); }
   if (!waitForPageReady) { waitForPageReady = async () => {
 
@@ -325,7 +338,7 @@ export async function run(project, {
   return true;
 }
 
-async function mainNavigate({ fs = realFs, project, projectPath } = {}) {
+async function mainNavigate({ fs = realFs, project, projectPath, debug = false } = {}) {
   if (!project) {
     if (!projectPath) {
       console.error("Please provide a project path: node navigator/index.js <path>");
@@ -394,7 +407,7 @@ async function mainNavigate({ fs = realFs, project, projectPath } = {}) {
   HEIGHT = parseInt(process.env.NAVIGATOR_HEIGHT || '1080', 10);
   JPEG_QUALITY = parseInt(process.env.NAVIGATOR_JPEG_QUALITY || '60', 10);
 
-  await run(project, { fs, page: null });
+  await run(project, { fs, page: null, debug });
 }
 
 export { mainNavigate };
