@@ -317,7 +317,7 @@ export async function run(project, {
 
     const bestLink = getBestLink(currentPosition.links, currentPosition.heading);
     if (bestLink) {
-      log.info(`Checking linked pano: ${bestLink.pano} (Heading: ${bestLink.heading.toFixed(1)}°)`);
+      log.info(`Checking best linked pano: ${bestLink.pano} (Heading: ${bestLink.heading.toFixed(1)}°)`);
       currentPosition = await getPanoData(fetchPanoData, routeState.badPanos, bestLink.pano, bestLink.heading);
       if (currentPosition) {
         log.info(`Setting new pano to ${currentPosition.pano} - ${currentPosition.description}`);
