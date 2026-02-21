@@ -270,7 +270,7 @@ export async function run(project, {
     heading: state.position.heading || 1,
     links: null
   };
-  let routeState = state.route || { badPanos: [] };
+  let routeState = state.route || { recentlyVisitedPanos: [], badPanos: [] };
 
   let roadTripping = true;
   while (roadTripping) {
@@ -292,6 +292,9 @@ export async function run(project, {
 
     // capture the screenshot
     await captureScreenshot(project.imagePath, page, currentPosition);
+
+    // Track recently visited panos (last 10)
+    routeState.recentlyVisitedPanos = [currentPosition.pano, ...routeState.recentlyVisitedPanos.filter(p => p !== currentPosition.pano)].slice(0, 10);
 
     // if the trip is over, end it
     if (currentStep >= route.length - 1) {
