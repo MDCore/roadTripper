@@ -210,6 +210,7 @@ export async function run(project, {
   debug = false
 } = {}) {
 
+  // initialize and set up for the run
   if (!page) { page = await setupViewport(fs, debug); }
   if (!initializePanorama) { initializePanorama = initPanoramaEvaluator(page); }
   if (!waitForPageReady) { waitForPageReady = async () => {
@@ -255,6 +256,9 @@ export async function run(project, {
   if (!fetchCurrentPosition) { fetchCurrentPosition = getCurrentPositionEvaluator(page); }
   if (!fetchPanoData) { fetchPanoData = panoDataEvaluator(page); }
   if (!moveTo) { moveTo = moveToPanoEvaluator(page); }
+
+
+  // load state and variables
   let initialized = false;
 
   const route = project.route;
@@ -272,6 +276,7 @@ export async function run(project, {
   };
   let routeState = state.route || { badPanos: [] };
 
+  // the loop
   let roadTripping = true;
   while (roadTripping) {
 
@@ -373,13 +378,15 @@ async function mainNavigate({ fs = realFs, project, projectPath, debug = false }
     console.error(`Project directory does not exist: ${project.projectPath}`);
     process.exit(1);
   }
+  if (!fs.existsSync(project.routeFile)) {
+    console.error(`route.json not found in project ${project.projectPath}! First plan a route and save it there.`);
+    process.exit(1);
+  }
 
+  // set up logging
   const logFile = fs.createWriteStream(path.join(project.projectPath, 'navigator.log'), { flags: 'a' });
-
   log.wrapStd();
-
   log.level = 4; // Show debug and above
-
   log.addReporter({
     log(logObj) {
       const timestamp = logObj.date ? new Date(logObj.date).toISOString() : '';
@@ -390,12 +397,7 @@ async function mainNavigate({ fs = realFs, project, projectPath, debug = false }
     }
   });
 
-  if (!fs.existsSync(project.routeFile)) {
-    log.fatal(`route.json not found in project ${project.projectPath}! First plan a route and save it there.`);
-    process.exit(1);
-  }
   project.route = JSON.parse(fs.readFileSync(project.routeFile, 'utf-8'));
-
   log.info(`Loaded route with ${project.route.length} waypoints`);
 
   if (!fs.existsSync(project.imagePath)) {
