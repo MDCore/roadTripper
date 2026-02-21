@@ -15,7 +15,6 @@ const panoDataEvaluator = (page) => (pano) => page.evaluate(({ pano }) => getPan
 const getCurrentPositionEvaluator = (page) => () => page.evaluate(() => getCurrentPositionPanoV());
 const moveToPanoEvaluator = (page) => (pano, heading) => page.evaluate(({ pano, heading }) => moveToPanoV(pano, heading), { pano, heading });
 const initPanoramaEvaluator = (page) => (lat, lng, heading, pano) => page.evaluate(({ lat, lng, heading, pano }) => initPanoramaV(lat, lng, heading, pano), { lat, lng, heading, pano });
-const updatePageTitle = (page) => (title) => page.evaluate(({ title }) => updateTitle(title ), { title });
 
 async function captureScreenshot(imagePath, page, position) {
 
@@ -275,7 +274,6 @@ export async function run(project, {
 
   let roadTripping = true;
   while (roadTripping) {
-    updatePageTitle(page)(`${currentStep} ${currentPosition.date ? currentPosition.date : ''} ${currentPosition.description ? currentPosition.description: '' }`);
 
     // get the heading
     let nextStep = null;

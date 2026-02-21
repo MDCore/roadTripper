@@ -19,10 +19,6 @@
     let panorama;
     let streetViewService;
 
-    function updateTitle(title) {
-      document.title = title;
-    }
-
     function initPanoramaV(lat, lng, heading, pano) {
       if (!streetViewService) {
         streetViewService = new google.maps.StreetViewService();

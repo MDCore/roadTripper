@@ -26,8 +26,7 @@ export default [
         panorama: 'readonly',
         getCurrentPositionPanoV: 'readonly',
         moveToPanoV: 'readonly',
-        getPanoDataV: 'readonly',
-        updateTitle: 'readonly'
+        getPanoDataV: 'readonly'
       },
     },
   },
