@@ -234,7 +234,7 @@ export async function run(project, {
         window._canvasCheck = { lastData: null, stableSince: null, startTime: Date.now() };
       }
 
-      const data = canvas.toDataURL('image/jpeg', 0.05);
+      const data = canvas.toDataURL('image/jpeg', 0.1);
       const check = window._canvasCheck;
 
       if (data === check.lastData) {
