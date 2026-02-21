@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 import { test, describe } from 'node:test';
-import { calculateHeading, calculateDistance, getBestLink } from './lib.js';
+import { calculateHeading, calculateDistance, getBestLink, createForbiddenPanos } from './lib.js';
 
 describe('Navigator Math', () => {
   test('calculateDistance should be accurate for known points', () => {
@@ -48,5 +48,77 @@ describe('Navigator Math', () => {
     // Target 0 (North) -> 180 is > 90 deg away
     const best = getBestLink(links, 0);
     assert.strictEqual(best, null);
+  });
+});
+
+describe('createForbiddenPanos', () => {
+  test('combines badPanos and recentlyVisitedPanos into all', () => {
+    const routeState = {
+      badPanos: ['bad1', 'bad2'],
+      recentlyVisitedPanos: ['recent1', 'recent2']
+    };
+    const forbidden = createForbiddenPanos(routeState);
+
+    assert.deepStrictEqual(routeState.badPanos, ['bad1', 'bad2']);
+    assert.deepStrictEqual(routeState.recentlyVisitedPanos, ['recent1', 'recent2']);
+    assert.deepStrictEqual(forbidden.all, ['bad1', 'bad2', 'recent1', 'recent2']);
+  });
+
+  test('returns arrays from routeState', () => {
+    const routeState = { badPanos: [], recentlyVisitedPanos: [] };
+    const forbidden = createForbiddenPanos(routeState);
+
+    assert.deepStrictEqual(routeState.badPanos, []);
+    assert.deepStrictEqual(routeState.recentlyVisitedPanos, []);
+    assert.deepStrictEqual(forbidden.all, []);
+  });
+
+  test('addBadPano deduplicates', () => {
+    const routeState = { badPanos: ['existing'], recentlyVisitedPanos: [] };
+    const forbidden = createForbiddenPanos(routeState);
+
+    forbidden.addBadPano('existing');
+
+    assert.deepStrictEqual(routeState.badPanos, ['existing']);
+  });
+
+  test('addBadPano adds new pano', () => {
+    const routeState = { badPanos: ['existing'], recentlyVisitedPanos: [] };
+    const forbidden = createForbiddenPanos(routeState);
+
+    forbidden.addBadPano('new');
+
+    assert.deepStrictEqual(routeState.badPanos, ['existing', 'new']);
+  });
+
+  test('addRecentlyVisited moves to front', () => {
+    const routeState = { badPanos: [], recentlyVisitedPanos: ['a', 'b', 'c'] };
+    const forbidden = createForbiddenPanos(routeState);
+
+    forbidden.addRecentlyVisited('b');
+
+    assert.deepStrictEqual(routeState.recentlyVisitedPanos, ['b', 'a', 'c']);
+  });
+
+  test('addRecentlyVisited limits to 10', () => {
+    const routeState = { badPanos: [], recentlyVisitedPanos: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'] };
+    const forbidden = createForbiddenPanos(routeState);
+
+    forbidden.addRecentlyVisited('new');
+
+    assert.strictEqual(routeState.recentlyVisitedPanos.length, 10);
+    assert.strictEqual(routeState.recentlyVisitedPanos[0], 'new');
+    assert.strictEqual(routeState.recentlyVisitedPanos[9], '9');
+  });
+
+  test('all getter returns fresh array each time', () => {
+    const routeState = { badPanos: ['bad1'], recentlyVisitedPanos: ['recent1'] };
+    const forbidden = createForbiddenPanos(routeState);
+
+    const all1 = forbidden.all;
+    const all2 = forbidden.all;
+
+    assert.notStrictEqual(all1, all2);
+    assert.deepStrictEqual(all1, all2);
   });
 });

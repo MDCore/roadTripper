@@ -39,13 +39,21 @@ export function getBestLink(links, targetHeading) {
 }
 
 export function createForbiddenPanos(routeState) {
-  const badPanos = routeState.badPanos || [];
-  const recentlyVisitedPanos = routeState.recentlyVisitedPanos || [];
   return {
-    badPanos,
-    recentlyVisitedPanos,
+    addBadPano(pano) {
+      if (!routeState.badPanos.includes(pano)) {
+        routeState.badPanos.push(pano);
+      }
+    },
+    addRecentlyVisited(pano) {
+      const arr = routeState.recentlyVisitedPanos;
+      const idx = arr.indexOf(pano);
+      if (idx !== -1) arr.splice(idx, 1);
+      arr.unshift(pano);
+      if (arr.length > 10) arr.pop();
+    },
     get all() {
-      return [...badPanos, ...recentlyVisitedPanos];
+      return [...routeState.badPanos, ...routeState.recentlyVisitedPanos];
     }
   };
 }

@@ -300,13 +300,14 @@ export async function run(project, {
     await captureScreenshot(project.imagePath, page, currentPosition);
 
     // Track recently visited panos (last 10)
-    routeState.recentlyVisitedPanos = [currentPosition.pano, ...routeState.recentlyVisitedPanos.filter(p => p !== currentPosition.pano)].slice(0, 10);
+    forbiddenPanos.addRecentlyVisited(currentPosition.pano);
 
     // if the trip is over, end it
     if (currentStep >= route.length - 1) {
       log.info(`Trip complete`);
       return true;
     }
+
 
     // work out the distance to the next step
     const distToNextStep = calculateDistance(currentPosition.lat, currentPosition.lng, nextStep.lat, nextStep.lng);
@@ -316,6 +317,11 @@ export async function run(project, {
       currentStep++;
 
       log.info(`Reached target step ${currentStep} of ${currentPosition.lat}, ${currentPosition.lng})`);
+
+      if (currentStep == route.length - 1) {
+        log.info(`Trip complete`);
+         return true;
+      }
     }
 
     // work out the best link - which direction to go from here
@@ -330,12 +336,12 @@ export async function run(project, {
         log.info(`Setting new pano to ${currentPosition.pano} - ${currentPosition.description}`);
       } else {
         // uh oh, the best link pano doesn't exist!
-        forbiddenPanos.badPanos.push(bestLink.pano);
+        forbiddenPanos.addBadPano(bestLink.pano);
         currentPosition = await getCurrentPositionData(forbiddenPanos, fetchCurrentPosition, fetchPanoData);
       }
     } else {
       // doh! Let's mark this as a bad pano, and try the next one
-      forbiddenPanos.badPanos.push(currentPosition.pano);
+      forbiddenPanos.addBadPano(currentPosition.pano);
       currentPosition = await getCurrentPositionData(forbiddenPanos, fetchCurrentPosition, fetchPanoData);
       continue;
     }

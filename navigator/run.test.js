@@ -106,7 +106,7 @@ suite('Run Logic', () => {
       initializePanorama,
       moveTo
     });
-    assert.equal(screenshotCount, 9);
+    assert.equal(screenshotCount, 8);
   });
 
   test('screenshot includes "alternate" in filename when an alternative pano is picked', async () => {
@@ -159,6 +159,72 @@ suite('Run Logic', () => {
     });
 
     assert.ok(capturedFilename.includes('alternate'), `Expected filename to contain "alternate", got: ${capturedFilename}`);
+  });
+
+  test('navigator avoids looping back to recently visited panos', async () => {
+    let savedState = null;
+
+    const mockFs = createMockFs({
+      existsSync: (path) => {
+        if (!path) { path = "" }
+        if (path.endsWith('navigator_state.json')) {
+            return false;
+        }
+        return true;
+      }
+    });
+
+    const positions = [
+      { lat: -33.915, lng: 18.422, pano: 'posA', heading: 45 },
+      { lat: -33.914, lng: 18.423, pano: 'posB', heading: 45 },
+      { lat: -33.913, lng: 18.424, pano: 'posC', heading: 45 },
+      { lat: -33.912, lng: 18.425, pano: 'posD', heading: 45 },
+      { lat: -33.911, lng: 18.426, pano: 'posE', heading: 45 },
+      { lat: -33.911, lng: 18.426, pano: 'posE', heading: 45 },
+      { lat: -33.911, lng: 18.426, pano: 'posE', heading: 45 },
+      { lat: -33.911, lng: 18.426, pano: 'posE', heading: 45 },
+    ];
+
+    const fetchCurrentPosition = () => positions.shift();
+
+    const panoDataMap = {
+      'posA': { lat: -33.915, lng: 18.422, pano: 'posA', heading: 45, description: 'Main Street', date: '2024-01', links: [{ heading: 50, pano: 'posB' }], times: [{ pano: 'posA', GA: '2024-01' }] },
+      'posB': { lat: -33.914, lng: 18.423, pano: 'posB', heading: 45, description: 'Main Street', date: '2024-01', links: [{ heading: 50, pano: 'posC' }], times: [{ pano: 'posB', GA: '2024-01' }] },
+      'posC': { lat: -33.913, lng: 18.424, pano: 'posC', heading: 45, description: 'Main Street', date: '2024-01', links: [{ heading: 40, pano: 'posB' }, { heading: 80, pano: 'posD' }], times: [{ pano: 'posC', GA: '2024-01' }] },
+      'posD': { lat: -33.912, lng: 18.425, pano: 'posD', heading: 45, description: 'Main Street', date: '2024-01', links: [{ heading: 50, pano: 'posE' }], times: [{ pano: 'posD', GA: '2024-01' }] },
+      'posE': { lat: -33.911, lng: 18.426, pano: 'posE', heading: 45, description: 'Main Street', date: '2024-01', links: [{ heading: 180, pano: 'posF' }], times: [{ pano: 'posE', GA: '2024-01' }] },
+      'posF': { lat: -33.912, lng: 18.427, pano: 'posF', heading: 45, description: 'Main Street', date: '2024-01', links: [{ heading: 180, pano: 'posG' }], times: [{ pano: 'posF', GA: '2024-01' }] },
+    };
+
+    const fetchPanoData = async (pano) => panoDataMap[pano];
+    const waitForPageReady = async () => {};
+    const initializePanorama = async () => {};
+    const moveTo = async () => {};
+
+    const mockProject = createMockProject({
+      route: [
+        { lat: -33.915, lng: 18.422 },
+        { lat: -33.911, lng: 18.426 }
+      ]
+    });
+    await run(mockProject, {
+      page: { screenshot: async () => {} },
+      fs: {
+        ...mockFs,
+        writeFileSync: (path, data) => {
+          savedState = JSON.parse(data);
+        }
+      },
+      fetchCurrentPosition,
+      fetchPanoData,
+      waitForPageReady,
+      initializePanorama,
+      moveTo
+    });
+
+    assert.ok(savedState, 'State should have been saved');
+    assert.deepStrictEqual(savedState.route.recentlyVisitedPanos, ['posD', 'posC', 'posB', 'posA'], 'Should have visited A, B, C, D in order');
+    assert.strictEqual(savedState.position.pano, 'posE', 'Should have navigated to posE');
   });
 
 });

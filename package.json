@@ -5,7 +5,7 @@
   "description": "Navigate across Street View links and takes date stamped screenshots for making time-lapses",
   "main": "roadTripper.js",
   "scripts": {
-    "test": "node --test navigator/*.test.js",
+    "test": "node --test",
     "lint": "eslint ."
   },
   "bin": {
