@@ -5,7 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { createConsola } from 'consola';
-import { calculateHeading, calculateDistance, getBestLink, loadState, saveState } from './lib.js';
+import { calculateHeading, calculateDistance, getBestLink, loadState, saveState, createForbiddenPanos } from './lib.js';
 
 // Global variables
 let log = createConsola({ level: 0 }); // Default to silent for tests
@@ -89,14 +89,14 @@ async function setupViewport(fs, debug = false) {
   return page;
 }
 
-async function initPanorama(currentPosition, badPanos, initializePanorama, waitForPageReady, fetchCurrentPosition, fetchPanoData) {
+async function initPanorama(currentPosition, forbiddenPanos, initializePanorama, waitForPageReady, fetchCurrentPosition, fetchPanoData) {
   await initializePanorama(currentPosition.lat, currentPosition.lng, currentPosition.heading, currentPosition.pano);
 
   await waitForPageReady();
 
   /* we're calling getCurrentPositionData() here, because we may have come into initPanorama without
   a panoId. This will get the panorama data for wherever we are now, including a pano */
-  return await getCurrentPositionData(badPanos, fetchCurrentPosition, fetchPanoData);
+  return await getCurrentPositionData(forbiddenPanos, fetchCurrentPosition, fetchPanoData);
 }
 
 export async function moveToPano(position, moveTo, waitForPageReady) {
@@ -107,22 +107,22 @@ export async function moveToPano(position, moveTo, waitForPageReady) {
 }
 
 /* Get the position data from whatever position the current panorama is in */
-export async function getCurrentPositionData(badPanos, fetchCurrentPosition, fetchPanoData) {
+export async function getCurrentPositionData(forbiddenPanos, fetchCurrentPosition, fetchPanoData) {
   const pano = await fetchCurrentPosition();
 
-  return await getPanoData(fetchPanoData, badPanos, pano.pano, pano.heading);
+  return await getPanoData(fetchPanoData, forbiddenPanos, pano.pano, pano.heading);
 }
 
-export async function chooseBestPanoAtPosition(panoData, badPanos, fetchPanoData) {
+export async function chooseBestPanoAtPosition(panoData, forbiddenPanos, fetchPanoData) {
   // Clean the pano history for this position
-  panoData.times = panoData.times.filter(item => !badPanos.includes(item.pano));
+  panoData.times = panoData.times.filter(item => !forbiddenPanos.all.includes(item.pano));
   if (panoData.times.length === 0) {
     log.warn(`${panoData.pano} has no good panos.`)
     return {};
   }
 
   // have we landed on a bad pano? Let's get the next best one
-  if (badPanos.includes(panoData.pano)) {
+  if (forbiddenPanos.all.includes(panoData.pano)) {
     log.warn(`This is a bad pano: ${panoData.pano}. Getting newest clean pano.`);
 
     // walk the panos backwards to find the newest one on the same road i.e. on has same description
@@ -172,14 +172,14 @@ export async function chooseBestPanoAtPosition(panoData, badPanos, fetchPanoData
 }
 
 /* get position data for an arbitrary panoId */
-export async function getPanoData(fetchPanoData, badPanos, pano, heading) {
+export async function getPanoData(fetchPanoData, forbiddenPanos, pano, heading) {
   let newPanoData = await fetchPanoData(pano);
   if (!newPanoData) {
     log.warn(`pano ${pano} not found`);
     return false;
   }
 
-  newPanoData = await chooseBestPanoAtPosition(newPanoData, badPanos, fetchPanoData);
+  newPanoData = await chooseBestPanoAtPosition(newPanoData, forbiddenPanos, fetchPanoData);
 
   if (!newPanoData) {
     log.warn(`There are no good panos at this pano ${pano}.`);
@@ -271,6 +271,7 @@ export async function run(project, {
     links: null
   };
   let routeState = state.route || { recentlyVisitedPanos: [], badPanos: [] };
+  const forbiddenPanos = createForbiddenPanos(routeState);
 
   let roadTripping = true;
   while (roadTripping) {
@@ -284,7 +285,7 @@ export async function run(project, {
 
     // load pano for the first time, or move towards it
     if (!initialized) {
-      currentPosition = await initPanorama(currentPosition, routeState.badPanos, initializePanorama, waitForPageReady, fetchCurrentPosition, fetchPanoData);
+      currentPosition = await initPanorama(currentPosition, forbiddenPanos, initializePanorama, waitForPageReady, fetchCurrentPosition, fetchPanoData);
       initialized = true;
     } else {
       await moveToPano(currentPosition, moveTo, waitForPageReady);
@@ -314,23 +315,23 @@ export async function run(project, {
 
     // work out the best link - which direction to go from here
     /* If you want to debug why something is going in the wrong direction, a breakpoint around here is a good start */
-    currentPosition.links = currentPosition.links.filter(item => !routeState.badPanos.includes(item.pano)); // strip bad panos
+    currentPosition.links = currentPosition.links.filter(item => !forbiddenPanos.all.includes(item.pano)); // strip forbidden panos
 
     const bestLink = getBestLink(currentPosition.links, currentPosition.heading);
     if (bestLink) {
       log.info(`Checking best linked pano: ${bestLink.pano} (Heading: ${bestLink.heading.toFixed(1)}°)`);
-      currentPosition = await getPanoData(fetchPanoData, routeState.badPanos, bestLink.pano, bestLink.heading);
+      currentPosition = await getPanoData(fetchPanoData, forbiddenPanos, bestLink.pano, bestLink.heading);
       if (currentPosition) {
         log.info(`Setting new pano to ${currentPosition.pano} - ${currentPosition.description}`);
       } else {
         // uh oh, the best link pano doesn't exist!
-        routeState.badPanos.push(bestLink.pano);
-        currentPosition = await getCurrentPositionData(routeState.badPanos, fetchCurrentPosition, fetchPanoData);
+        forbiddenPanos.badPanos.push(bestLink.pano);
+        currentPosition = await getCurrentPositionData(forbiddenPanos, fetchCurrentPosition, fetchPanoData);
       }
     } else {
       // doh! Let's mark this as a bad pano, and try the next one
-      routeState.badPanos.push(currentPosition.pano);
-      currentPosition = await getCurrentPositionData(routeState.badPanos, fetchCurrentPosition, fetchPanoData);
+      forbiddenPanos.badPanos.push(currentPosition.pano);
+      currentPosition = await getCurrentPositionData(forbiddenPanos, fetchCurrentPosition, fetchPanoData);
       continue;
     }
 
