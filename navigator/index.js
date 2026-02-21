@@ -155,7 +155,7 @@ export async function chooseBestPanoAtPosition(panoData, forbiddenPanos, fetchPa
   // So it isn't a bad pano, but is it the latest pano?
   let latestPanoData = panoData.times[panoData.times.length - 1];
   if (panoData.times && panoData.pano !== latestPanoData.pano) {
-    log.warn(`Not the latest pano. Considering switching from ${panoData.pano} [${panoData.date}] to ${latestPanoData.pano} [${latestPanoData.date}]`);
+    log.debug(`Not the latest pano. Considering switching from ${panoData.pano} [${panoData.date}] to ${latestPanoData.pano} [${latestPanoData.date}]`);
     /*
     So this is not the latest pano, but is the new pano still on the same road i.e. has the same description?
     Get the latest pano so we can see its description.
@@ -163,15 +163,15 @@ export async function chooseBestPanoAtPosition(panoData, forbiddenPanos, fetchPa
     latestPanoData = await fetchPanoData(latestPanoData.pano);
 
     if (panoData.description != latestPanoData.description) {
-      log.warn(`Not switching. Latest pano was a different location: ${latestPanoData.description} instead of ${panoData.description}`);
+      log.debug(`Not switching. Latest pano was a different location: ${latestPanoData.description} instead of ${panoData.description}`);
       return panoData;
     }
     if (forbiddenPanos.bannedRoads.includes(latestPanoData.description)) {
-      log.warn(`Not switching. Latest pano was a banned road: ${latestPanoData.description}`);
+      log.debug(`Not switching. Latest pano was a banned road: ${latestPanoData.description}`);
       return panoData;
     }
 
-    log.warn(`Switching from pano ${panoData.pano} [${panoData.date}] to ${latestPanoData.pano} [${latestPanoData.date}]`);
+    log.debug(`Switching from pano ${panoData.pano} [${panoData.date}] to ${latestPanoData.pano} [${latestPanoData.date}]`);
     latestPanoData.isAlternate = true;
     return latestPanoData;
   }
@@ -184,14 +184,14 @@ export async function chooseBestPanoAtPosition(panoData, forbiddenPanos, fetchPa
 export async function getPanoData(fetchPanoData, forbiddenPanos, pano, heading) {
   let newPanoData = await fetchPanoData(pano);
   if (!newPanoData) {
-    log.warn(`pano ${pano} not found`);
+    log.debug(`pano ${pano} not found`);
     return false;
   }
 
   newPanoData = await chooseBestPanoAtPosition(newPanoData, forbiddenPanos, fetchPanoData);
 
   if (!newPanoData) {
-    log.warn(`There are no good panos at this pano ${pano}.`);
+    log.debug(`There are no good panos at this pano ${pano}.`);
     return false;
   }
 
@@ -349,7 +349,7 @@ export async function run(project, {
 
     const bestLink = getBestLink(currentPosition.links, currentPosition.heading);
     if (bestLink) {
-      log.info(`Checking best linked pano: ${bestLink.pano} (Heading: ${bestLink.heading.toFixed(1)}°)`);
+      log.debug(`Checking best linked pano: ${bestLink.pano} (Heading: ${bestLink.heading.toFixed(1)}°)`);
       currentPosition = await getPanoData(fetchPanoData, forbiddenPanos, bestLink.pano, bestLink.heading);
       if (currentPosition) {
         log.info(`Setting new pano to ${currentPosition.pano} - ${currentPosition.description}`);
