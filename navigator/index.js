@@ -284,34 +284,36 @@ export async function run(project, {
       currentPosition.heading = nextStep ? calculateHeading(route[currentStep].lat, route[currentStep].lng, nextStep.lat, nextStep.lng) : 0;
     }
 
+    // load pano for the first time, or move towards it
     if (!initialized) {
       currentPosition = await initPanorama(currentPosition, routeState.badPanos, initializePanorama, waitForPageReady, fetchCurrentPosition, fetchPanoData);
       initialized = true;
     } else {
       await moveToPano(currentPosition, moveTo, waitForPageReady);
     }
+
+    // capture the screenshot
     await captureScreenshot(project.imagePath, page, currentPosition);
 
+    // if the trip is over, end it
     if (currentStep >= route.length - 1) {
       log.info(`Trip complete`);
       return true;
     }
 
+    // work out the distance to the next step
     const distToNextStep = calculateDistance(currentPosition.lat, currentPosition.lng, nextStep.lat, nextStep.lng);
     log.info(`Target ${currentStep + 1}/${route.length} - Dist: ${distToNextStep.toFixed(1)}m`);
-
-    // Start again at next Step
+    // if we're close to the next step, increment the step counter
     if (distToNextStep < 25) {
       currentStep++;
 
-      log.info(`Reached target step ${currentStep} but NOT resetting to ${currentPosition.lat}, ${currentPosition.lng})`);
-    } else if (!currentPosition.pano) {
-      log.fatal(`not implemented yet!`);
-      return false;
+      log.info(`Reached target step ${currentStep} of ${currentPosition.lat}, ${currentPosition.lng})`);
     }
 
-    // strip badPanos from links
-    currentPosition.links = currentPosition.links.filter(item => !routeState.badPanos.includes(item.pano));
+    // work out the best link - which direction to go from here
+    /* If you want to debug why something is going in the wrong direction, a breakpoint around here is a good start */
+    currentPosition.links = currentPosition.links.filter(item => !routeState.badPanos.includes(item.pano)); // strip bad panos
 
     const bestLink = getBestLink(currentPosition.links, currentPosition.heading);
     if (bestLink) {
@@ -331,6 +333,7 @@ export async function run(project, {
       continue;
     }
 
+    // Save the state to navigator_state.json
     saveState(fs, project.stateFile, currentStep, currentPosition, routeState, log);
     log.log('------------------------------------------------------------------------------')
   }

@@ -62,7 +62,7 @@ The script will follow the route and save screenshots to `<project-path>/images/
 
 ## Project Structure
 
-```
+```plaintext
 └── <project-path>/
     ├── project.conf         # Required: Project configuration
     ├── route.json           # Required: The exported route
@@ -70,3 +70,8 @@ The script will follow the route and save screenshots to `<project-path>/images/
     ├── navigator_state.json # Auto-generated: Current progress
     └── images/              # Auto-generated: Captured screenshots
 ```
+
+## Navigation Tips
+
+- You can replace `navigator_state.json` with session data from the log to restart at a point
+- If a position is taking an obviously wrong link, try adding that link's pano to badPanos in `navigator_state.json`
