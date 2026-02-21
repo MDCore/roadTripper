@@ -134,12 +134,16 @@ export async function chooseBestPanoAtPosition(panoData, forbiddenPanos, fetchPa
       if (checkPanoData.description !== panoData.description) {
         log.debug(`Description mismatch: ${panoData.description} vs ${checkPanoData.description}`)
         continue;
-      } else {
-        log.debug(`Success. Pano ${i} is the best good pano.`)
-        bestPanoData = checkPanoData;
-        bestPanoData.isAlternate = true;
-        break;
       }
+      if (forbiddenPanos.bannedRoads.includes(panoData.description)) {
+        log.debug(`Banned road: ${panoData.description}`)
+        continue;
+      }
+      log.debug(`Success. Pano ${i} is the best good pano.`)
+      bestPanoData = checkPanoData;
+      bestPanoData.isAlternate = true;
+      break;
+
     }
     if (!bestPanoData) {
       return {};
@@ -160,11 +164,16 @@ export async function chooseBestPanoAtPosition(panoData, forbiddenPanos, fetchPa
 
     if (panoData.description != latestPanoData.description) {
       log.warn(`Not switching. Latest pano was a different location: ${latestPanoData.description} instead of ${panoData.description}`);
-    } else {
-      log.warn(`Switching from pano ${panoData.pano} [${panoData.date}] to ${latestPanoData.pano} [${latestPanoData.date}]`);
-      latestPanoData.isAlternate = true;
-      return latestPanoData;
+      return panoData;
     }
+    if (forbiddenPanos.bannedRoads.includes(latestPanoData.description)) {
+      log.warn(`Not switching. Latest pano was a banned road: ${latestPanoData.description}`);
+      return panoData;
+    }
+
+    log.warn(`Switching from pano ${panoData.pano} [${panoData.date}] to ${latestPanoData.pano} [${latestPanoData.date}]`);
+    latestPanoData.isAlternate = true;
+    return latestPanoData;
   }
 
   // No changes? Just go with what we got then
@@ -234,7 +243,7 @@ export async function run(project, {
         }
 
         const stableMs = Date.now() - check.stableSince;
-        if (stableMs > 500) {
+        if (stableMs > 1000) {
           window._canvasCheck = null;
           return true;
         }
@@ -274,7 +283,7 @@ export async function run(project, {
     heading: state.position.heading || 1,
     links: null
   };
-  let routeState = state.route || { recentlyVisitedPanos: [], badPanos: [] };
+  let routeState = state.route || { recentlyVisitedPanos: [], badPanos: [], bannedRoads: [] };
   const forbiddenPanos = createForbiddenPanos(routeState);
 
   // the loop
@@ -325,8 +334,18 @@ export async function run(project, {
     }
 
     // work out the best link - which direction to go from here
-    /* If you want to debug why something is going in the wrong direction, a breakpoint around here is a good start */
+    // NB: If you want to debug why something is going in the wrong direction, a breakpoint around here is a good start
     currentPosition.links = currentPosition.links.filter(item => !forbiddenPanos.all.includes(item.pano)); // strip forbidden panos
+
+    // filter banned roads from the best links
+    currentPosition.links = currentPosition.links.filter(item => {
+      if (routeState.bannedRoads.includes(item.description)) {
+        log.debug(`Banning pano ${item.pano} because of banned road: ${item.description}`)
+        forbiddenPanos.addBadPano(item.pano);
+        return false;
+      }
+      return true;
+    });
 
     const bestLink = getBestLink(currentPosition.links, currentPosition.heading);
     if (bestLink) {
@@ -336,11 +355,13 @@ export async function run(project, {
         log.info(`Setting new pano to ${currentPosition.pano} - ${currentPosition.description}`);
       } else {
         // uh oh, the best link pano doesn't exist!
+        log.debug(`Banning pano ${bestLink.pano} because the pano does not exist`)
         forbiddenPanos.addBadPano(bestLink.pano);
         currentPosition = await getCurrentPositionData(forbiddenPanos, fetchCurrentPosition, fetchPanoData);
       }
     } else {
       // doh! Let's mark this as a bad pano, and try the next one
+      log.debug(`Banning pano ${currentPosition.pano} because it has no best link`)
       forbiddenPanos.addBadPano(currentPosition.pano);
       currentPosition = await getCurrentPositionData(forbiddenPanos, fetchCurrentPosition, fetchPanoData);
       continue;

@@ -73,6 +73,7 @@ The script will follow the route and save screenshots to `<project-path>/images/
 
 ## Navigation Tips
 
-- if your screenshots look like they're not fully loaded, increase `NAVIGATOR_STEP_DELAY` in `project.conf`
-- You can replace `navigator_state.json` with session data from the log to restart at a point
+- If your screenshots look like they're not fully loaded, increase `NAVIGATOR_STEP_DELAY` in `project.conf`
+- If the navigator tries to go down a road you don't want, add the road description to "bannedRoads" in `navigator_state.json`
+- You can replace `navigator_state.json` with session data from the log to restart at that point
 - If a position is taking an obviously wrong link, try adding that link's pano to badPanos in `navigator_state.json`

@@ -54,6 +54,13 @@ export function createForbiddenPanos(routeState) {
     },
     get all() {
       return [...routeState.badPanos, ...routeState.recentlyVisitedPanos];
+    },
+    get bannedRoads() {
+      if (routeState.bannedRoads) {
+        return routeState.bannedRoads;
+      } else {
+        return [];
+      }
     }
   };
 }
@@ -64,15 +71,15 @@ export function loadState(fs, STATE_FILE, log) {
       let state = JSON.parse(fs.readFileSync(STATE_FILE, 'utf-8'));
       if (state) {
         if (!state.route.badPanos) { state.route.badPanos = []; }
-        if (!state.route.recentlyVisitedPanos) { state.route.recentlyVisitedPanos = [];
-        }
+        if (!state.route.recentlyVisitedPanos) { state.route.recentlyVisitedPanos = []; }
+        if (!state.route.bannedRoads) { state.route.bannedRoads = []; }
         return state;
       }
     } catch {
       log?.warn('Warning: Could not parse state file. Starting from scratch.');
     }
   }
-  return {"position": {"step": 0}, "route": {"recentlyVisitedPanos": [], "badPanos": []} };
+  return {"position": {"step": 0}, "route": {"recentlyVisitedPanos": [], "badPanos": [], "bannedRoads": []} };
 }
 
 export function saveState(fs, STATE_FILE, index, position, route, log) {
@@ -88,6 +95,7 @@ export function saveState(fs, STATE_FILE, index, position, route, log) {
     route: {
       recentlyVisitedPanos: route.recentlyVisitedPanos || [],
       badPanos: route.badPanos || [],
+      bannedRoads: route.bannedRoads || [],
     },
   };
   const logState = JSON.stringify(logData);
