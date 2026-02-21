@@ -95,7 +95,15 @@
       return new Promise((resolve) => {
         streetViewService.getPanorama({ pano: pano }, async (data, status) => {
           if (status === 'OK' && data) {
-            const date = data.imageDate ? new Date(data.imageDate).toISOString().split('T')[0] : null;
+            const date = data.imageDate ? new Date(data.imageDate).toISOString().slice(0, 7) : null;
+            // standardize the variable name for times.date (it can be GA/HA/zA etc.)
+            const times = data.time ? data.time.map(item => {
+              const dynamicKey = Object.keys(item).find(key => key !== 'pano');
+              return {
+                pano: item.pano,
+                date: item[dynamicKey].toISOString().slice(0, 7)
+              };
+            }) : null;
             let result = {
               date: date,
               lat: data.location.latLng.lat(),
@@ -103,7 +111,7 @@
               description: data.location.shortDescription,
               pano: pano,
               links: data.links,
-              times: data.time
+              times: times
             };
             resolve(result);
           } else {

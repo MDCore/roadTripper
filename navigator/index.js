@@ -20,7 +20,7 @@ const updatePageTitle = (page) => (title) => page.evaluate(({ title }) => update
 async function captureScreenshot(imagePath, page, position) {
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('Z')[0];
-  const imageDate = position.date ? new Date(position.date).toISOString().slice(0, 7) : "unknown";
+  const imageDate = position.date ? position.date : "unknown";
   const filename = path.join(imagePath, `${timestamp} ${position.lat.toFixed(6)} ${position.lng.toFixed(6)} ${imageDate} ${position.pano}${position.isAlternate ? ' alternate' : ''}.jpg`);
 
   await page.screenshot({ path: filename, type: 'jpeg', quality: JPEG_QUALITY });
@@ -129,7 +129,7 @@ export async function chooseBestPanoAtPosition(panoData, badPanos, fetchPanoData
     // walk the panos backwards to find the newest one on the same road i.e. on has same description
     let bestPanoData = {};
     for (let i = panoData.times.length - 1; i >= 0; i--) {
-      log.debug(`checking pano ${i}: ${panoData.times[i].pano} on ${panoData.description} from ${panoData.times[i].GA}`);
+      log.debug(`checking pano ${i}: ${panoData.times[i].pano} on ${panoData.description} from ${panoData.times[i].date}`);
       let checkPanoData = await fetchPanoData(panoData.times[i].pano);
 
       if (checkPanoData.description !== panoData.description) {
@@ -150,19 +150,19 @@ export async function chooseBestPanoAtPosition(panoData, badPanos, fetchPanoData
   }
 
   // So it isn't a bad pano, but is it the latest pano?
-  let latestPano = panoData.times[panoData.times.length - 1];
-  if (panoData.times && panoData.pano !== latestPano.pano) {
-    log.warn(`Not the latest pano. Considering switching from ${panoData.pano} to ${latestPano.pano}`);
+  let latestPanoData = panoData.times[panoData.times.length - 1];
+  if (panoData.times && panoData.pano !== latestPanoData.pano) {
+    log.warn(`Not the latest pano. Considering switching from ${panoData.pano} [${panoData.date}] to ${latestPanoData.pano} [${latestPanoData.date}]`);
     /*
     So this is not the latest pano, but is the new pano still on the same road i.e. has the same description?
     Get the latest pano so we can see its description.
     */
-    let latestPanoData = await fetchPanoData(latestPano.pano);
+    latestPanoData = await fetchPanoData(latestPanoData.pano);
 
     if (panoData.description != latestPanoData.description) {
       log.warn(`Not switching. Latest pano was a different location: ${latestPanoData.description} instead of ${panoData.description}`);
     } else {
-      log.warn(`Switching from older pano ${panoData.pano} to ${latestPanoData.pano}`);
+      log.warn(`Switching from pano ${panoData.pano} [${panoData.date}] to ${latestPanoData.pano} [${latestPanoData.date}]`);
       latestPanoData.isAlternate = true;
       return latestPanoData;
     }
@@ -275,7 +275,7 @@ export async function run(project, {
 
   let roadTripping = true;
   while (roadTripping) {
-    updatePageTitle(page)(`${currentStep} ${currentPosition.date ? currentPosition.date.slice(0, 7) : ''} ${currentPosition.description ? currentPosition.description: '' }`);
+    updatePageTitle(page)(`${currentStep} ${currentPosition.date ? currentPosition.date : ''} ${currentPosition.description ? currentPosition.description: '' }`);
 
     // get the heading
     let nextStep = null;
