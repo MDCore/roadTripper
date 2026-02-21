@@ -38,15 +38,33 @@ export function getBestLink(links, targetHeading) {
   return closestLink;
 }
 
+export function createForbiddenPanos(routeState) {
+  const badPanos = routeState.badPanos || [];
+  const recentlyVisitedPanos = routeState.recentlyVisitedPanos || [];
+  return {
+    badPanos,
+    recentlyVisitedPanos,
+    get all() {
+      return [...badPanos, ...recentlyVisitedPanos];
+    }
+  };
+}
+
 export function loadState(fs, STATE_FILE, log) {
   if (fs.existsSync(STATE_FILE)) {
     try {
-      return JSON.parse(fs.readFileSync(STATE_FILE, 'utf-8'));
+      let state = JSON.parse(fs.readFileSync(STATE_FILE, 'utf-8'));
+      if (state) {
+        if (!state.route.badPanos) { state.route.badPanos = []; }
+        if (!state.route.recentlyVisitedPanos) { state.route.recentlyVisitedPanos = [];
+        }
+        return state;
+      }
     } catch {
       log?.warn('Warning: Could not parse state file. Starting from scratch.');
     }
   }
-  return {"position": {"step": 0}, "route": {"badPanos": []}};
+  return {"position": {"step": 0}, "route": {"recentlyVisitedPanos": [], "badPanos": []} };
 }
 
 export function saveState(fs, STATE_FILE, index, position, route, log) {
@@ -60,8 +78,9 @@ export function saveState(fs, STATE_FILE, index, position, route, log) {
       date: position.date || null
     },
     route: {
-      badPanos: route.badPanos || []
-    }
+      recentlyVisitedPanos: route.recentlyVisitedPanos || [],
+      badPanos: route.badPanos || [],
+    },
   };
   const logState = JSON.stringify(logData);
   log?.info(`Saving state ${logState}`);

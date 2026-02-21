@@ -1,6 +1,7 @@
 import assert from 'node:assert';
 import { test, describe } from 'node:test';
 import { chooseBestPanoAtPosition } from './index.js';
+import { createForbiddenPanos } from './lib.js';
 
 describe('chooseBestPanoAtPosition', () => {
   test('returns the same panoData when not in badPanos and is latest', async () => {
@@ -9,10 +10,10 @@ describe('chooseBestPanoAtPosition', () => {
       description: 'Main Street',
       times: [{ pano: 'pano_a', GA: '2024-01' }]
     };
-    const badPanos = ['bad_pano'];
+    const forbiddenPanos = createForbiddenPanos({ badPanos: ['bad_pano'], recentlyVisitedPanos: [] });
     const fetchPanoData = async () => { throw new Error('Should not be called'); };
 
-    const result = await chooseBestPanoAtPosition(panoData, badPanos, fetchPanoData);
+    const result = await chooseBestPanoAtPosition(panoData, forbiddenPanos, fetchPanoData);
 
     assert.deepStrictEqual(result, panoData);
   });
@@ -27,12 +28,12 @@ describe('chooseBestPanoAtPosition', () => {
         { pano: 'good_pano_2', GA: '2024-01' }
       ]
     };
-    const badPanos = ['bad_pano'];
+    const forbiddenPanos = createForbiddenPanos({ badPanos: ['bad_pano'], recentlyVisitedPanos: [] });
     const fetchPanoData = async (pano) => {
       return { description: 'Main Street', pano, lat: 1, lng: 2, date: '2024-01', links: [] };
     };
 
-    const result = await chooseBestPanoAtPosition(panoData, badPanos, fetchPanoData);
+    const result = await chooseBestPanoAtPosition(panoData, forbiddenPanos, fetchPanoData);
 
     assert.strictEqual(result.pano, 'good_pano_2');
   });
@@ -46,10 +47,10 @@ describe('chooseBestPanoAtPosition', () => {
         { pano: 'bad_pano_2', GA: '2023-06' }
       ]
     };
-    const badPanos = ['bad_pano_1', 'bad_pano_2'];
+    const forbiddenPanos = createForbiddenPanos({ badPanos: ['bad_pano_1', 'bad_pano_2'], recentlyVisitedPanos: [] });
     const fetchPanoData = async () => { throw new Error('Should not be called'); };
 
-    const result = await chooseBestPanoAtPosition(panoData, badPanos, fetchPanoData);
+    const result = await chooseBestPanoAtPosition(panoData, forbiddenPanos, fetchPanoData);
 
     assert.deepStrictEqual(result, {});
   });
@@ -60,10 +61,10 @@ describe('chooseBestPanoAtPosition', () => {
       description: 'Main Street',
       times: [{ pano: 'bad_pano', GA: '2023-01' }]
     };
-    const badPanos = ['bad_pano'];
+    const forbiddenPanos = createForbiddenPanos({ badPanos: ['bad_pano'], recentlyVisitedPanos: [] });
     const fetchPanoData = async () => { throw new Error('Should not be called'); };
 
-    const result = await chooseBestPanoAtPosition(panoData, badPanos, fetchPanoData);
+    const result = await chooseBestPanoAtPosition(panoData, forbiddenPanos, fetchPanoData);
 
     assert.deepStrictEqual(result, {});
   });
@@ -77,12 +78,12 @@ describe('chooseBestPanoAtPosition', () => {
         { pano: 'new_pano', GA: '2024-01' }
       ]
     };
-    const badPanos = [];
+    const forbiddenPanos = createForbiddenPanos({ badPanos: [], recentlyVisitedPanos: [] });
     const fetchPanoData = async (pano) => {
       return { description: 'Main Street', pano, lat: 1, lng: 2, date: '2024-01', links: [] };
     };
 
-    const result = await chooseBestPanoAtPosition(panoData, badPanos, fetchPanoData);
+    const result = await chooseBestPanoAtPosition(panoData, forbiddenPanos, fetchPanoData);
 
     assert.strictEqual(result.pano, 'new_pano');
   });
@@ -96,7 +97,7 @@ describe('chooseBestPanoAtPosition', () => {
         { pano: 'different_road_pano', GA: '2024-01' }
       ]
     };
-    const badPanos = [];
+    const forbiddenPanos = createForbiddenPanos({ badPanos: [], recentlyVisitedPanos: [] });
     const fetchPanoData = async (pano) => {
       if (pano === 'different_road_pano') {
         return { description: 'Different Road', pano, lat: 1, lng: 2, date: '2024-01', links: [] };
@@ -104,7 +105,7 @@ describe('chooseBestPanoAtPosition', () => {
       return { description: 'Main Street', pano, lat: 1, lng: 2, date: '2023-01', links: [] };
     };
 
-    const result = await chooseBestPanoAtPosition(panoData, badPanos, fetchPanoData);
+    const result = await chooseBestPanoAtPosition(panoData, forbiddenPanos, fetchPanoData);
 
     assert.strictEqual(result.pano, 'old_pano');
     assert.strictEqual(result.description, 'Main Street');
@@ -121,7 +122,7 @@ describe('chooseBestPanoAtPosition', () => {
         { pano: 'good_pano_on_main', GA: '2024-01' }
       ]
     };
-    const badPanos = ['bad_pano'];
+    const forbiddenPanos = createForbiddenPanos({ badPanos: ['bad_pano'], recentlyVisitedPanos: [] });
     const fetchPanoData = async (pano) => {
       if (pano === 'good_pano_on_main') {
         return { description: 'Main Street', pano, lat: 1, lng: 2, date: '2024-01', links: [] };
@@ -129,7 +130,7 @@ describe('chooseBestPanoAtPosition', () => {
       return { description: 'Different Road', pano, lat: 1, lng: 2, date: '2023', links: [] };
     };
 
-    const result = await chooseBestPanoAtPosition(panoData, badPanos, fetchPanoData);
+    const result = await chooseBestPanoAtPosition(panoData, forbiddenPanos, fetchPanoData);
 
     assert.strictEqual(result.pano, 'good_pano_on_main');
   });
