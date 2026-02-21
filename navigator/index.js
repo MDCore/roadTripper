@@ -67,7 +67,7 @@ async function setupViewport(fs, debug = false) {
 
   // Serve viewport.html over http://localhost to avoid file:// referer issues
   await page.route('http://localhost:3000/', route => {
-    const html = fs.readFileSync('./navigator/viewport.html', 'utf-8');
+    const html = fs.readFileSync(path.join(__dirname, 'viewport.html'), 'utf-8');
     route.fulfill({
       contentType: 'text/html',
       body: html
@@ -420,6 +420,7 @@ async function mainNavigate({ fs = realFs, project, projectPath, debug = false }
 export { mainNavigate };
 
 const __filename = realFs.realpathSync(fileURLToPath(import.meta.url));
+const __dirname = path.dirname(__filename);
 const argv1RealPath = process.argv[1] ? realFs.realpathSync(process.argv[1]) : null;
 if (argv1RealPath === __filename) {
   const projectPath = process.argv[2];
