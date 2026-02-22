@@ -78,7 +78,8 @@ export function loadState(fs, STATE_FILE, log) {
         return state;
       }
     } catch {
-      log?.warn('Warning: Could not parse state file. Starting from scratch.');
+      log?.fatal('Failed to parse state file. Please fix or remove the corrupted file.');
+      process.exit(1);
     }
   }
   return {"position": {"step": 0}, "route": {"recentlyVisitedPanos": [], "badPanos": [], "bannedRoads": []} };
