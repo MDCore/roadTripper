@@ -86,7 +86,7 @@ async function setupViewport(fs, debug = false) {
   await page.waitForFunction(() => window.google && window.google.maps);
   log.info('Google Maps API loaded');
 
-  return page;
+  return { page, browser };
 }
 
 async function initPanorama(currentPosition, forbiddenPanos, initializePanorama, waitForPageReady, fetchCurrentPosition, fetchPanoData) {
@@ -141,10 +141,6 @@ export async function chooseBestPanoAtPosition(panoData, forbiddenPanos, fetchPa
       bestPanoData = checkPanoData;
       bestPanoData.isAlternate = true;
       break;
-
-    }
-    if (!bestPanoData) {
-      return {};
     }
 
     return bestPanoData;
@@ -160,7 +156,7 @@ export async function chooseBestPanoAtPosition(panoData, forbiddenPanos, fetchPa
     */
     latestPanoData = await fetchPanoData(latestPanoData.pano);
 
-    if (panoData.description != latestPanoData.description) {
+    if (panoData.description !== latestPanoData.description) {
       log.debug(`Not switching. Latest pano was a different location: ${latestPanoData.description} instead of ${panoData.description}`);
       return panoData;
     }
@@ -183,14 +179,14 @@ export async function getPanoData(fetchPanoData, forbiddenPanos, pano, heading) 
   let newPanoData = await fetchPanoData(pano);
   if (!newPanoData) {
     log.debug(`pano ${pano} not found`);
-    return false;
+    return null;
   }
 
   newPanoData = await chooseBestPanoAtPosition(newPanoData, forbiddenPanos, fetchPanoData);
 
   if (!newPanoData) {
     log.debug(`There are no good panos at this pano ${pano}.`);
-    return false;
+    return null;
   }
 
   let currentPosition = {};
@@ -217,8 +213,16 @@ export async function run(project, {
   debug = false
 } = {}) {
 
+  let browser = null;
+  let createdBrowser = false;
+
   // initialize and set up for the run
-  if (!page) { page = await setupViewport(fs, debug); }
+  if (!page) {
+    const result = await setupViewport(fs, debug);
+    page = result.page;
+    browser = result.browser;
+    createdBrowser = true;
+  }
   if (!initializePanorama) { initializePanorama = initPanoramaEvaluator(page); }
   if (!waitForPageReady) { waitForPageReady = async () => {
 
@@ -370,6 +374,11 @@ export async function run(project, {
     log.log('------------------------------------------------------------------------------')
   }
 
+  // Clean up browser if we created it
+  if (createdBrowser && browser) {
+    await browser.close();
+  }
+
   return true;
 }
 
@@ -426,7 +435,12 @@ async function mainNavigate({ fs = realFs, project, projectPath, debug = false }
     }
   });
 
-  project.route = JSON.parse(fs.readFileSync(project.routeFile, 'utf-8'));
+  try {
+    project.route = JSON.parse(fs.readFileSync(project.routeFile, 'utf-8'));
+  } catch (err) {
+    console.error(`Error: Failed to parse route.json: ${err.message}`);
+    process.exit(1);
+  }
   log.info(`Loaded route with ${project.route.length} waypoints`);
 
   if (!fs.existsSync(project.imagePath)) {

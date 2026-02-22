@@ -2,6 +2,10 @@
 
 A modern reconstruction of the original RoadTripper with a route-aware navigation engine.
 
+## Security Warning
+
+> **The Route Planner (`roadtripper plan`) embeds your Google Maps API key in the client-side JavaScript bundle.** Do not expose the planner to the public internet. Only run it locally or on a trusted network.
+
 ## Prerequisites
 
 - Node.js (v18+)

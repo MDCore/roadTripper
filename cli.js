@@ -53,10 +53,12 @@ program
     if (options.watch) {
       const imagesDir = path.join(path.resolve(projectPath), 'images');
 
-      const waitForImages = () => new Promise((resolve) => {
+      const waitForImages = () => new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Timeout waiting for images')), 30000);
         const check = () => {
           const files = realFs.readdirSync(imagesDir).filter(f => f.match(/\.(jpg|jpeg|png)$/i));
           if (files.length > 0) {
+            clearTimeout(timeout);
             resolve();
           } else {
             setTimeout(check, 500);
@@ -67,7 +69,13 @@ program
 
       const navigatorPromise = mainNavigate({ projectPath, debug: options.debug });
 
-      await waitForImages();
+      try {
+        await waitForImages();
+      } catch (err) {
+        console.error('Error:', err.message);
+        cleanup();
+        process.exit(1);
+      }
 
       watchProcess = spawn('feh', [
         '--sort', 'mtime',
@@ -125,7 +133,6 @@ program
     spawn('npm', ['run', 'dev'], {
       cwd: plannerPath,
       stdio: 'inherit',
-      shell: true,
       env
     });
 

@@ -39,9 +39,11 @@ export function getBestLink(links, targetHeading) {
 }
 
 export function createForbiddenPanos(routeState) {
+  const badPanosSet = new Set(routeState.badPanos);
   return {
     addBadPano(pano) {
-      if (!routeState.badPanos.includes(pano)) {
+      if (!badPanosSet.has(pano)) {
+        badPanosSet.add(pano);
         routeState.badPanos.push(pano);
       }
     },
