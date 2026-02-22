@@ -123,8 +123,6 @@ export async function chooseBestPanoAtPosition(panoData, forbiddenPanos, fetchPa
 
   // have we landed on a bad pano? Let's get the next best one
   if (forbiddenPanos.all.includes(panoData.pano)) {
-    log.warn(`This is a bad pano: ${panoData.pano}. Getting newest clean pano.`);
-
     // walk the panos backwards to find the newest one on the same road i.e. on has same description
     let bestPanoData = {};
     for (let i = panoData.times.length - 1; i >= 0; i--) {
@@ -340,7 +338,7 @@ export async function run(project, {
     // filter banned roads from the best links
     currentPosition.links = currentPosition.links.filter(item => {
       if (routeState.bannedRoads.includes(item.description)) {
-        log.debug(`Banning pano ${item.pano} because of banned road: ${item.description}`)
+        log.debug(`Marking bad pano ${item.pano} because of banned road: ${item.description}`)
         forbiddenPanos.addBadPano(item.pano);
         return false;
       }
@@ -355,13 +353,13 @@ export async function run(project, {
         log.info(`Setting new pano to ${currentPosition.pano} - ${currentPosition.description}`);
       } else {
         // uh oh, the best link pano doesn't exist!
-        log.debug(`Banning pano ${bestLink.pano} because the pano does not exist`)
+        log.debug(`Marking bad pano ${bestLink.pano} because the pano does not exist`)
         forbiddenPanos.addBadPano(bestLink.pano);
         currentPosition = await getCurrentPositionData(forbiddenPanos, fetchCurrentPosition, fetchPanoData);
       }
     } else {
       // doh! Let's mark this as a bad pano, and try the next one
-      log.debug(`Banning pano ${currentPosition.pano} because it has no best link`)
+      log.debug(`Marking bad pano ${currentPosition.pano} because it has no best link`)
       forbiddenPanos.addBadPano(currentPosition.pano);
       currentPosition = await getCurrentPositionData(forbiddenPanos, fetchCurrentPosition, fetchPanoData);
       continue;
