@@ -9,6 +9,7 @@ planner/node_modules/
 # Build outputs
 dist/
 planner/dist/
+planner/.vite/
 
 # Project-specific
 projects/
