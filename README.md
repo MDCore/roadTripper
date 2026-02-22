@@ -36,7 +36,7 @@ NAVIGATOR_RETAKE_DELAY=5000  # ms delay for retake command (default: 5000)
 NAVIGATOR_WIDTH=1920          # Screenshot width (default: 1920)
 NAVIGATOR_HEIGHT=1080         # Screenshot height (default: 1080)
 NAVIGATOR_JPEG_QUALITY=60     # JPEG quality 0-100 (default: 60)
-NAVIGATOR_CANVAS_STABLE_TIME=500  # ms canvas must be stable before screenshot (default: 1000)
+NAVIGATOR_CANVAS_STABLE_TIME=500  # ms canvas must be stable before screenshot (default: 500)
 NAVIGATOR_CANVAS_MAX_WAIT=10000    # max ms to wait for canvas stability (default: 10000)
 ```
 
@@ -45,7 +45,7 @@ NAVIGATOR_CANVAS_MAX_WAIT=10000    # max ms to wait for canvas stability (defaul
 Use the Route Planner to define your journey e.g.:
 
 ```bash
-roadtripper plan ./projects/N2/
+roadtripper plan ./path/to/project/
 ```
 
 This will install dependencies (if needed) and start the planner at `http://localhost:5173`.
@@ -60,7 +60,7 @@ This will install dependencies (if needed) and start the planner at `http://loca
 Follow the route and capture images by providing the project path e.g.:
 
 ```bash
-roadtripper navigate --watch ./projects/N2/
+roadtripper navigate --watch /path/to/project/
 ```
 
 The script will follow the route and save screenshots to `<project-path>/images/`.
@@ -70,7 +70,7 @@ The script will follow the route and save screenshots to `<project-path>/images/
 If an individual image didn't capture correctly, you can retake it e.g.:
 
 ```bash
-roadtripper retake ""./projects/N2/images/2024-01-15\ 40.712800 -74.006000 2024-01-15 abc123 123.4567.jpg"
+roadtripper retake "/path/to/project/images/2024-01-15\ 40.712800 -74.006000 2024-01-15 abc123 123.4567.jpg"
 ```
 
 The command will:
@@ -99,7 +99,7 @@ roadtripper retake --debug <image-path>
 
 ## Navigation Tips
 
-- If your screenshots look like they're not fully loaded, increase `NAVIGATOR_STEP_DELAY` in `project.conf`
-- You can replace `navigator_state.json` with session data from the log to restart at that point
+- If your screenshots look like they're not fully loaded, increase `NAVIGATOR_CANVAS_STABLE_TIME` or `NAVIGATOR_STEP_DELAY` in `project.conf`
+- You can replace `navigator_state.json` with session data from the log to restart at a given point
 - If a position is taking an obviously wrong link, try adding that link's pano to badPanos in `navigator_state.json`
 - If the navigator tries to go down a road you don't want, add the road description to "bannedRoads" in `navigator_state.json`
