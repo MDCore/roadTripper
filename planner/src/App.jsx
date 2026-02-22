@@ -1,6 +1,6 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { GoogleMap, useJsApiLoader, MarkerF, OverlayView, PolylineF } from '@react-google-maps/api';
-import { calculateDistance, findNearestWaypointIndex } from './utils';
+import { findNearestWaypointIndex } from './utils';
 
 const containerStyle = {
   width: '100vw',
@@ -27,8 +27,6 @@ function App() {
   const [infoWindow, setInfoWindow] = useState(null); // 'start' or 'end' or null
   const [navigatorPosition, setNavigatorPosition] = useState(null);
   const [navigatorStateData, setNavigatorStateData] = useState(null);
-
-  const projectFileInputRef = useRef(null);
 
   const onMapClick = useCallback((e) => {
     if (infoWindow) {
@@ -170,79 +168,82 @@ function App() {
 
   const exportRoute = useCallback(() => {
     if (path) {
-      const projectName = prompt("Enter project name (e.g. N2):");
-      if (!projectName) return;
-
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(path));
-      const downloadAnchorNode = document.createElement('a');
-      downloadAnchorNode.setAttribute("href", dataStr);
-      downloadAnchorNode.setAttribute("download", `${projectName}_route.json`);
-      document.body.appendChild(downloadAnchorNode);
-      downloadAnchorNode.click();
-      downloadAnchorNode.remove();
-
-      alert(`Route exported! Please place this file in projects/${projectName}/route.json`);
+      fetch('/api/save-route', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(path)
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            const projectName = import.meta.env.PROJECT_PATH?.split('/').filter(Boolean).pop() || 'project';
+            alert(`Route saved to projects/${projectName}/route.json`);
+          } else {
+            alert(`Error saving route: ${data.error}`);
+          }
+        })
+        .catch(err => alert(`Error saving route: ${err.message}`));
     }
   }, [path]);
 
   const exportNavigatorState = useCallback(() => {
     if (navigatorStateData) {
-
-      const dataStr = "data:text/json;charset=utf-8," +
-        encodeURIComponent(JSON.stringify(navigatorStateData, null, 2));
-      const downloadAnchorNode = document.createElement('a');
-      downloadAnchorNode.setAttribute("href", dataStr);
-      downloadAnchorNode.setAttribute("download", `navigator_state.json`);
-      document.body.appendChild(downloadAnchorNode);
-      downloadAnchorNode.click();
-      downloadAnchorNode.remove();
-
-      alert(`Navigator state exported!`);
+      fetch('/api/save-navigator-state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(navigatorStateData)
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            const projectName = import.meta.env.PROJECT_PATH?.split('/').filter(Boolean).pop() || 'project';
+            alert(`Navigator state saved to projects/${projectName}/navigator_state.json`);
+          } else {
+            alert(`Error saving navigator state: ${data.error}`);
+          }
+        })
+        .catch(err => alert(`Error saving navigator state: ${err.message}`));
     }
   }, [navigatorStateData]);
 
-  const handleProjectLoad = (event) => {
-    const files = Array.from(event.target.files);
-    if (files.length > 0) {
-      setPath(null);
-      setNavigatorPosition(null);
-      setNavigatorStateData(null);
-      setInfoWindow(null);
-
-      files.forEach(file => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          try {
-            const json = JSON.parse(e.target.result);
-            if (file.name.includes('route.json')) {
-              setPath(json);
-              if (json.length > 0) {
-                setStart(json[0]);
-                setEnd(json[json.length - 1]);
-                if (map) {
-                  const bounds = new window.google.maps.LatLngBounds();
-                  json.forEach(point => bounds.extend(point));
-                  map.fitBounds(bounds);
-                }
-              }
-            } else if (file.name.includes('navigator_state.json')) {
-              setNavigatorStateData(json); // Store complete state
-              const pos = json.position || {};
-              if (pos.lat && pos.lng) {
-                setNavigatorPosition({ lat: pos.lat, lng: pos.lng });
-              }
+  const reloadProjectFiles = useCallback(() => {
+    fetch('/api/project-files')
+      .then(res => res.json())
+      .then(data => {
+        if (data.route) {
+          setPath(data.route);
+          if (data.route.length > 0) {
+            setStart(data.route[0]);
+            setEnd(data.route[data.route.length - 1]);
+            if (map) {
+              const bounds = new window.google.maps.LatLngBounds();
+              data.route.forEach(point => bounds.extend(point));
+              map.fitBounds(bounds);
             }
-          } catch (error) {
-            console.error(`Error parsing ${file.name}`, error);
           }
-        };
-        reader.readAsText(file);
-      });
+        }
+        if (data.navigatorState) {
+          setNavigatorStateData(data.navigatorState);
+          const pos = data.navigatorState.position || {};
+          if (pos.lat && pos.lng) {
+            setNavigatorPosition({ lat: pos.lat, lng: pos.lng });
+          }
+        }
+        if (!data.route && !data.navigatorState) {
+          alert('No project files found in this project folder.');
+        }
+      })
+      .catch(err => alert(`Error loading project files: ${err.message}`));
+  }, [map]);
 
-      // Reset file input so same files can be selected again
-      event.target.value = '';
+  const projectLoadedRef = useRef(false);
+
+  useEffect(() => {
+    if (isLoaded && map && !projectLoadedRef.current) {
+      projectLoadedRef.current = true;
+      reloadProjectFiles();
     }
-  };
+  }, [isLoaded, map, reloadProjectFiles]);
 
   return isLoaded ? (
     <div style={{ position: 'relative' }}>
@@ -339,14 +340,15 @@ function App() {
       </GoogleMap>
 
       <div style={{ position: 'absolute', top: 10, left: 10, background: 'white', padding: 10, borderRadius: 5, zIndex: 1 }}>
-        <div style={{ fontWeight: 'bold', marginBottom: 10, fontSize: '18px' }}>Roadtripper</div>
+        <div style={{ fontWeight: 'bold', marginBottom: 10, fontSize: '18px' }}>
+          Plan {import.meta.env.PROJECT_PATH?.split('/').filter(Boolean).pop() || 'Project'}
+        </div>
         <button onClick={() => {
           setStart(null);
           setEnd(null);
           setPath(null);
           setInfoWindow(null);
           setNavigatorPosition(null);
-          if (projectFileInputRef.current) projectFileInputRef.current.value = "";
         }}>Clear All</button>
         <button style={{ marginLeft: 10 }} onClick={zoomToStart} disabled={!start}>Zoom to Start</button>
         <button style={{ marginLeft: 10 }} onClick={zoomToEnd} disabled={!end}>Zoom to End</button>
@@ -362,15 +364,7 @@ function App() {
         </div>
 
         <div style={{ marginTop: 10 }}>
-          <button onClick={() => projectFileInputRef.current.click()}>Load Project Files</button>
-          <input
-            type="file"
-            ref={projectFileInputRef}
-            style={{ display: 'none' }}
-            onChange={handleProjectLoad}
-            multiple
-            accept=".json"
-          />
+          <button onClick={reloadProjectFiles}>Reload Project Files</button>
           {navigatorPosition && (
             <>
               <button style={{ marginLeft: 10 }} onClick={zoomToNavigator}>Zoom to Navigator</button>

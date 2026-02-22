@@ -51,9 +51,7 @@ This will install dependencies (if needed) and start the planner at `http://loca
 1. Click on the map to set a **Start** point.
 2. Click again to set an **End** point.
 3. Click **Calculate Route**.
-4. Click **Export Route**. You will be prompted for a **Project Name** (e.g., `N2`).
-5. A file named `<ProjectName>_route.json` will be downloaded.
-6. Save this file to your project folder.
+4. Click **Export Route**. The route will be saved to `route.json` in your project folder.
 
 ### 3. Run the Navigator
 
