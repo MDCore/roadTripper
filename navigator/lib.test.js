@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 import { test, describe } from 'node:test';
-import { calculateHeading, calculateDistance, getBestLink, createForbiddenPanos } from './lib.js';
+import { calculateHeading, calculateDistance, getBestLink, createForbiddenPanos, parseImageFilename } from './lib.js';
 
 describe('Navigator Math', () => {
   test('calculateDistance should be accurate for known points', () => {
@@ -120,5 +120,37 @@ describe('createForbiddenPanos', () => {
 
     assert.notStrictEqual(all1, all2);
     assert.deepStrictEqual(all1, all2);
+  });
+});
+
+describe('parseImageFilename', () => {
+  test('parses standard filename correctly', () => {
+    const result = parseImageFilename('2024-01-15 40.712800 -74.006000 2024-01-15 abc123 123.4567.jpg');
+    assert.strictEqual(result.pano, 'abc123');
+    assert.strictEqual(result.heading, 123.4567);
+  });
+
+  test('parses filename with alternate marker', () => {
+    const result = parseImageFilename('2024-01-15 40.712800 -74.006000 2024-01-15 abc123 90.0000 alternate.jpg');
+    assert.strictEqual(result.pano, 'abc123');
+    assert.strictEqual(result.heading, 90.0);
+  });
+
+  test('parses filename without .jpg extension', () => {
+    const result = parseImageFilename('2024-01-15 40.712800 -74.006000 2024-01-15 panoId 180.5000');
+    assert.strictEqual(result.pano, 'panoId');
+    assert.strictEqual(result.heading, 180.5);
+  });
+
+  test('returns null for invalid filename', () => {
+    assert.strictEqual(parseImageFilename('invalid'), null);
+    assert.strictEqual(parseImageFilename(''), null);
+    assert.strictEqual(parseImageFilename('only-one-part'), null);
+  });
+
+  test('handles JPEG extension case-insensitively', () => {
+    const result = parseImageFilename('2024-01-15 40.712800 -74.006000 2024-01-15 abc123 45.0000.JPG');
+    assert.strictEqual(result.pano, 'abc123');
+    assert.strictEqual(result.heading, 45.0);
   });
 });

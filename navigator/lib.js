@@ -104,3 +104,31 @@ export function saveState(fs, STATE_FILE, index, position, route, log) {
   log?.info(`Saving state ${logState}`);
   fs.writeFileSync(STATE_FILE, JSON.stringify(logData, null, 2));
 }
+
+export function parseImageFilename(filename) {
+  const basename = filename.replace(/\.jpg$/i, '');
+  const parts = basename.split(' ');
+
+  if (parts.length < 2) {
+    return null;
+  }
+
+  const lastPart = parts[parts.length - 1];
+  const secondLastPart = parts[parts.length - 2];
+
+  let pano, heading;
+
+  if (!isNaN(parseFloat(lastPart))) {
+    heading = parseFloat(lastPart);
+    pano = secondLastPart;
+  } else if (!isNaN(parseFloat(secondLastPart))) {
+    heading = parseFloat(secondLastPart);
+    pano = parts[parts.length - 3];
+  }
+
+  if (isNaN(heading) || !pano) {
+    return null;
+  }
+
+  return { pano, heading };
+}

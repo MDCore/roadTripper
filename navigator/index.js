@@ -458,6 +458,80 @@ async function mainNavigate({ fs = realFs, project, projectPath, debug = false }
 
 export { mainNavigate };
 
+async function retakeImage(project, imagePath, pano, heading, { fs = realFs, debug = false, retakeDelay = 5000 } = {}) {
+  const logFile = fs.createWriteStream(path.join(project.projectPath, 'navigator.log'), { flags: 'a' });
+  log.wrapStd();
+  log.level = 4;
+  log.addReporter({
+    log(logObj) {
+      const timestamp = logObj.date ? new Date(logObj.date).toISOString() : '';
+      const msg = typeof logObj.args[0] === 'object'
+        ? JSON.stringify(logObj.args)
+        : logObj.args.join(' ');
+      logFile.write(`${timestamp} ${msg}\n`);
+    }
+  });
+
+  WIDTH = parseInt(process.env.NAVIGATOR_WIDTH || '1920', 10);
+  HEIGHT = parseInt(process.env.NAVIGATOR_HEIGHT || '1080', 10);
+  JPEG_QUALITY = parseInt(process.env.NAVIGATOR_JPEG_QUALITY || '60', 10);
+
+  log.info(`Retaking image: ${pano} at heading ${heading}`);
+
+  const result = await setupViewport(fs, debug);
+  const page = result.page;
+  const browser = result.browser;
+
+  const initializePanorama = initPanoramaEvaluator(page);
+  const waitForPageReady = async () => {
+    await page.waitForLoadState('networkidle');
+    await page.waitForFunction(() => {
+      const canvas = document.querySelector('canvas');
+      if (!canvas) return false;
+      if (!window._canvasCheck) {
+        window._canvasCheck = { lastData: null, stableSince: null, startTime: Date.now() };
+      }
+      const data = canvas.toDataURL('image/jpeg', 0.1);
+      const check = window._canvasCheck;
+      if (data === check.lastData) {
+        if (!check.stableSince) {
+          check.stableSince = Date.now();
+        }
+        const stableMs = Date.now() - check.stableSince;
+        if (stableMs > 1000) {
+          window._canvasCheck = null;
+          return true;
+        }
+      } else {
+        check.lastData = data;
+        check.stableSince = null;
+      }
+      if (Date.now() - check.startTime > 10000) {
+        window._canvasCheck = null;
+        return true;
+      }
+      return false;
+    }, { timeout: 10000 }).catch(() => {});
+    await page.waitForTimeout(retakeDelay);
+  };
+  const fetchCurrentPosition = getCurrentPositionEvaluator(page);
+
+  await initializePanorama(0, 0, heading, pano);
+  await waitForPageReady();
+
+  const position = await fetchCurrentPosition();
+  position.heading = heading;
+  position.pano = pano;
+
+  await page.screenshot({ path: imagePath, type: 'jpeg', quality: JPEG_QUALITY });
+  log.info(`📷 Retaken: ${path.basename(imagePath)}`);
+
+  await browser.close();
+  logFile.end();
+}
+
+export { retakeImage };
+
 const __filename = realFs.realpathSync(fileURLToPath(import.meta.url));
 const __dirname = path.dirname(__filename);
 const argv1RealPath = process.argv[1] ? realFs.realpathSync(process.argv[1]) : null;

@@ -167,6 +167,7 @@ Environment variables in project.conf:
 | Variable | Default | Description |
 | ---------- | --------- | ------------- |
 | NAVIGATOR_STEP_DELAY | 1000 | ms to wait after panorama loads |
+| NAVIGATOR_RETAKE_DELAY | 5000 | ms to wait for retake command |
 | NAVIGATOR_WIDTH | 1920 | Screenshot width |
 | NAVIGATOR_HEIGHT | 1080 | Screenshot height |
 | NAVIGATOR_JPEG_QUALITY | 60 | JPEG quality 0-100 |
@@ -190,4 +191,4 @@ Hardcoded values in navigator/index.js and lib.js:
 | navigator/index.js | Main loop | run(), getPanoData(), chooseBestPanoAtPosition(), captureScreenshot() |
 | navigator/lib.js | Pure logic | calculateHeading(), calculateDistance(), getBestLink(), createForbiddenPanos(), loadState(), saveState() |
 | navigator/viewport.html | Browser context | Injected JS: getPanoDataV, getCurrentPositionPanoV, initPanoramaV, moveToPanoV |
-| cli.js | CLI commands | plan command, navigate command |
+| cli.js | CLI commands | plan command, navigate command, retake command |
