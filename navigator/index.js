@@ -228,7 +228,7 @@ export async function run(project, {
 
     await page.waitForLoadState('networkidle');
 
-    await page.waitForFunction(() => {
+    await page.waitForFunction((vars) => {
       const canvas = document.querySelector('canvas');
       if (!canvas) return false;
 
@@ -245,7 +245,7 @@ export async function run(project, {
         }
 
         const stableMs = Date.now() - check.stableSince;
-        if (stableMs > CANVAS_STABLE_TIME) {
+        if (stableMs > vars.CANVAS_STABLE_TIME) {
           window._canvasCheck = null;
           return true;
         }
@@ -254,13 +254,13 @@ export async function run(project, {
         check.stableSince = null;
       }
 
-      if (Date.now() - check.startTime > CANVAS_MAX_WAIT) {
+      if (Date.now() - check.startTime > vars.CANVAS_MAX_WAIT) {
         window._canvasCheck = null;
         return true;
       }
 
       return false;
-    }, { timeout: CANVAS_MAX_WAIT }).catch(() => {});
+    }, { CANVAS_STABLE_TIME: CANVAS_STABLE_TIME, CANVAS_MAX_WAIT: CANVAS_MAX_WAIT }, CANVAS_STABLE_TIME, CANVAS_MAX_WAIT).catch(() => {});
 
     await page.waitForTimeout(STEP_DELAY);
   }; }
@@ -489,7 +489,7 @@ async function retakeImage(project, imagePath, pano, heading, { fs = realFs, deb
   const initializePanorama = initPanoramaEvaluator(page);
   const waitForPageReady = async () => {
     await page.waitForLoadState('networkidle');
-    await page.waitForFunction(() => {
+    await page.waitForFunction((vars) => {
       const canvas = document.querySelector('canvas');
       if (!canvas) return false;
       if (!window._canvasCheck) {
@@ -502,7 +502,7 @@ async function retakeImage(project, imagePath, pano, heading, { fs = realFs, deb
           check.stableSince = Date.now();
         }
         const stableMs = Date.now() - check.stableSince;
-        if (stableMs > CANVAS_STABLE_TIME) {
+        if (stableMs > vars.CANVAS_STABLE_TIME) {
           window._canvasCheck = null;
           return true;
         }
@@ -510,12 +510,12 @@ async function retakeImage(project, imagePath, pano, heading, { fs = realFs, deb
         check.lastData = data;
         check.stableSince = null;
       }
-      if (Date.now() - check.startTime > CANVAS_MAX_WAIT) {
+      if (Date.now() - check.startTime > vars.CANVAS_MAX_WAIT) {
         window._canvasCheck = null;
         return true;
       }
       return false;
-    }, { timeout: CANVAS_MAX_WAIT }).catch(() => {});
+    }, { CANVAS_STABLE_TIME: CANVAS_STABLE_TIME, CANVAS_MAX_WAIT: CANVAS_MAX_WAIT }, CANVAS_STABLE_TIME, CANVAS_MAX_WAIT).catch(() => {});
     await page.waitForTimeout(retakeDelay);
   };
   const fetchCurrentPosition = getCurrentPositionEvaluator(page);
