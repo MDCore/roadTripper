@@ -171,6 +171,8 @@ Environment variables in project.conf:
 | NAVIGATOR_WIDTH | 1920 | Screenshot width |
 | NAVIGATOR_HEIGHT | 1080 | Screenshot height |
 | NAVIGATOR_JPEG_QUALITY | 60 | JPEG quality 0-100 |
+| NAVIGATOR_CANVAS_STABLE_TIME | 500 | ms canvas must be stable before screenshot |
+| NAVIGATOR_CANVAS_MAX_WAIT | 10000 | max ms to wait for canvas stability |
 
 ## 13. Magic Numbers
 
@@ -180,8 +182,6 @@ Hardcoded values in navigator/index.js and lib.js:
 | ------- | ---------- | --------- |
 | 25 | index.js:~323 | Distance threshold (meters) to increment step |
 | 90 | lib.js:33 | Max heading difference to consider a link |
-| 1000 | index.js:~244 | Canvas stable time before screenshot (ms) |
-| 10000 | index.js:~253 | Max wait for canvas stability (ms) |
 | 10 | lib.js:53 | Max recently visited panos to track |
 
 ## 14. Key Files Quick Reference

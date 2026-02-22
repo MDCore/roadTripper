@@ -36,6 +36,8 @@ NAVIGATOR_RETAKE_DELAY=5000  # ms delay for retake command (default: 5000)
 NAVIGATOR_WIDTH=1920          # Screenshot width (default: 1920)
 NAVIGATOR_HEIGHT=1080         # Screenshot height (default: 1080)
 NAVIGATOR_JPEG_QUALITY=60     # JPEG quality 0-100 (default: 60)
+NAVIGATOR_CANVAS_STABLE_TIME=500  # ms canvas must be stable before screenshot (default: 1000)
+NAVIGATOR_CANVAS_MAX_WAIT=10000    # max ms to wait for canvas stability (default: 10000)
 ```
 
 ### 2. Plan a Route

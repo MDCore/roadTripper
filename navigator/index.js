@@ -9,7 +9,7 @@ import { calculateHeading, calculateDistance, getBestLink, loadState, saveState,
 
 // Global variables
 let log = createConsola({ level: 0 }); // Default to silent for tests
-let WIDTH, HEIGHT, STEP_DELAY, JPEG_QUALITY;
+let WIDTH, HEIGHT, STEP_DELAY, JPEG_QUALITY, CANVAS_STABLE_TIME, CANVAS_MAX_WAIT;
 
 const panoDataEvaluator = (page) => (pano) => page.evaluate(({ pano }) => getPanoDataV(pano), { pano });
 const getCurrentPositionEvaluator = (page) => () => page.evaluate(() => getCurrentPositionPanoV());
@@ -245,7 +245,7 @@ export async function run(project, {
         }
 
         const stableMs = Date.now() - check.stableSince;
-        if (stableMs > 1000) {
+        if (stableMs > CANVAS_STABLE_TIME) {
           window._canvasCheck = null;
           return true;
         }
@@ -254,13 +254,13 @@ export async function run(project, {
         check.stableSince = null;
       }
 
-      if (Date.now() - check.startTime > 10000) {
+      if (Date.now() - check.startTime > CANVAS_MAX_WAIT) {
         window._canvasCheck = null;
         return true;
       }
 
       return false;
-    }, { timeout: 10000 }).catch(() => {});
+    }, { timeout: CANVAS_MAX_WAIT }).catch(() => {});
 
     await page.waitForTimeout(STEP_DELAY);
   }; }
@@ -452,6 +452,8 @@ async function mainNavigate({ fs = realFs, project, projectPath, debug = false }
   WIDTH = parseInt(process.env.NAVIGATOR_WIDTH || '1920', 10);
   HEIGHT = parseInt(process.env.NAVIGATOR_HEIGHT || '1080', 10);
   JPEG_QUALITY = parseInt(process.env.NAVIGATOR_JPEG_QUALITY || '60', 10);
+  CANVAS_STABLE_TIME = parseInt(process.env.NAVIGATOR_CANVAS_STABLE_TIME || '1000', 10);
+  CANVAS_MAX_WAIT = parseInt(process.env.NAVIGATOR_CANVAS_MAX_WAIT || '10000', 10);
 
   await run(project, { fs, page: null, debug });
 }
@@ -475,6 +477,8 @@ async function retakeImage(project, imagePath, pano, heading, { fs = realFs, deb
   WIDTH = parseInt(process.env.NAVIGATOR_WIDTH || '1920', 10);
   HEIGHT = parseInt(process.env.NAVIGATOR_HEIGHT || '1080', 10);
   JPEG_QUALITY = parseInt(process.env.NAVIGATOR_JPEG_QUALITY || '60', 10);
+  CANVAS_STABLE_TIME = parseInt(process.env.NAVIGATOR_CANVAS_STABLE_TIME || '1000', 10);
+  CANVAS_MAX_WAIT = parseInt(process.env.NAVIGATOR_CANVAS_MAX_WAIT || '10000', 10);
 
   log.info(`Retaking image: ${pano} at heading ${heading}`);
 
@@ -498,7 +502,7 @@ async function retakeImage(project, imagePath, pano, heading, { fs = realFs, deb
           check.stableSince = Date.now();
         }
         const stableMs = Date.now() - check.stableSince;
-        if (stableMs > 1000) {
+        if (stableMs > CANVAS_STABLE_TIME) {
           window._canvasCheck = null;
           return true;
         }
@@ -506,12 +510,12 @@ async function retakeImage(project, imagePath, pano, heading, { fs = realFs, deb
         check.lastData = data;
         check.stableSince = null;
       }
-      if (Date.now() - check.startTime > 10000) {
+      if (Date.now() - check.startTime > CANVAS_MAX_WAIT) {
         window._canvasCheck = null;
         return true;
       }
       return false;
-    }, { timeout: 10000 }).catch(() => {});
+    }, { timeout: CANVAS_MAX_WAIT }).catch(() => {});
     await page.waitForTimeout(retakeDelay);
   };
   const fetchCurrentPosition = getCurrentPositionEvaluator(page);
